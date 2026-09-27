@@ -1,0 +1,1175 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=5.0">
+<title>Weekly Performance Dashboard</title>
+<link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700&display=swap" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-datalabels@2.2.0"></script>
+<script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+<style>
+*{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent;}
+body{font-family:'Poppins',sans-serif;background:radial-gradient(1400px 500px at 12% -10%,#1b2340,#0b1022);color:#eaf1ff;padding:16px;min-height:100vh;}
+.toprow{display:flex;align-items:center;gap:14px;margin-bottom:14px;}
+.toprow .bar-accent{width:12px;height:34px;background:linear-gradient(#63b3ff,#2f6df6);border-radius:5px;flex:0 0 auto;}
+.toprow h1{font-size:20px;font-weight:700;letter-spacing:.3px;}
+.icontabs{display:flex;gap:6px;margin-left:auto;}
+.itab{width:42px;height:42px;border-radius:12px;border:1px solid rgba(130,160,220,.25);background:rgba(255,255,255,.05);color:#8ea0c4;font-size:20px;cursor:pointer;display:flex;align-items:center;justify-content:center;transition:.18s;}
+.itab:hover{background:rgba(99,179,255,.15);border-color:rgba(99,179,255,.5);}
+.itab.on{background:linear-gradient(135deg,#2f6df6,#3d7bff);color:#fff;border-color:#3d7bff;box-shadow:0 4px 14px rgba(47,109,246,.4);}
+
+.collapse-btn{margin-left:auto;width:30px;height:30px;flex:0 0 auto;border-radius:8px;border:1px solid rgba(130,160,220,.3);background:rgba(255,255,255,.06);color:#cfe0ff;font-size:15px;cursor:pointer;display:flex;align-items:center;justify-content:center;transition:.2s;}
+.collapse-btn:hover{background:rgba(99,179,255,.2);border-color:rgba(99,179,255,.6);}
+
+.slicer{background:rgba(255,255,255,.05);border:1px solid rgba(130,160,220,.2);border-radius:14px;padding:14px 16px;margin-bottom:18px;scroll-margin-top:14px;}
+.slicer .head{display:flex;align-items:center;gap:8px;margin-bottom:10px;}
+.slicer .lab{font-size:13px;font-weight:600;color:#dde6fb;}
+.slicer .count{font-size:11px;font-weight:500;color:#8ea0c4;}
+.tiles{display:flex;flex-wrap:wrap;gap:10px;}
+.tile{padding:11px 16px;border-radius:12px;font-size:12.5px;font-weight:600;cursor:pointer;transition:.22s;border:1.5px solid rgba(130,160,220,.3);background:rgba(255,255,255,.05);color:#c3d0ec;user-select:none;}
+.tile:hover{border-color:rgba(99,179,255,.6);background:rgba(99,179,255,.12);}
+.tile.on{font-weight:700;border:1.5px solid #63b3ff;background:linear-gradient(135deg,#2f6df6,#3d7bff);color:#fff;box-shadow:0 0 0 3px rgba(61,123,255,.25),0 6px 18px rgba(61,123,255,.45);transform:translateY(-2px);}
+.tile.all{border-color:rgba(0,194,173,.5);}
+.tile.all.on{background:linear-gradient(135deg,#00a596,#00c2ad);border-color:#5be6c6;box-shadow:0 0 0 3px rgba(0,194,173,.25),0 6px 18px rgba(0,194,173,.45);}
+
+/* ===== BOTTOM-CENTER MONTH FILTER (floating button + popover) ===== */
+.fab-month{position:fixed;left:50%;transform:translateX(-50%);bottom:20px;z-index:60;height:56px;padding:0 18px;border-radius:28px;border:1px solid rgba(255,255,255,.15);background:linear-gradient(135deg,#7a5cff,#9a7bff);color:#fff;font-size:20px;cursor:pointer;box-shadow:0 8px 24px rgba(122,92,255,.55);display:flex;align-items:center;gap:8px;transition:.2s;}
+.fab-month:hover{transform:translateX(-50%) translateY(-2px) scale(1.03);box-shadow:0 12px 30px rgba(122,92,255,.7);}
+.fab-month:active{transform:translateX(-50%) scale(.97);}
+.fab-month .fm-lab{font-size:12.5px;font-weight:700;letter-spacing:.2px;}
+.fab-month .fm-badge{min-width:22px;height:22px;padding:0 7px;border-radius:12px;background:#fff;color:#5a3ec8;font-size:11px;font-weight:700;display:flex;align-items:center;justify-content:center;box-shadow:0 2px 6px rgba(0,0,0,.25);}
+.mpop-back{position:fixed;inset:0;background:rgba(4,8,20,.35);z-index:78;opacity:0;pointer-events:none;transition:.2s;}
+.mpop-back.show{opacity:1;pointer-events:auto;}
+.mpop{position:fixed;left:50%;bottom:88px;transform:translateX(-50%) translateY(10px) scale(.96);transform-origin:bottom center;z-index:82;width:220px;background:linear-gradient(180deg,#161e3c,#0f1631);border:1px solid rgba(130,160,220,.3);border-radius:14px;box-shadow:0 18px 44px rgba(0,0,0,.55);padding:8px;opacity:0;pointer-events:none;transition:.18s ease;}
+.mpop.open{opacity:1;pointer-events:auto;transform:translateX(-50%) translateY(0) scale(1);}
+.mpop-head{font-size:10.5px;letter-spacing:.6px;color:#8fb3ff;text-transform:uppercase;font-weight:700;padding:6px 8px 8px;display:flex;align-items:center;gap:7px;}
+.mpop-list{display:flex;flex-direction:column;gap:5px;}
+.mrow{display:flex;align-items:center;gap:10px;padding:10px 10px;border-radius:9px;cursor:pointer;font-size:12.5px;font-weight:600;color:#c3d0ec;border:1px solid rgba(130,160,220,.2);background:rgba(255,255,255,.04);transition:.15s;user-select:none;}
+.mrow:hover{filter:brightness(1.15);}
+.mrow .mdot{width:10px;height:10px;border-radius:3px;flex:0 0 auto;}
+.mrow .mchk{margin-left:auto;font-size:13px;opacity:0;}
+.mrow.on{font-weight:700;color:#fff;}
+.mrow.on .mchk{opacity:1;}
+.mrow.all.on{background:linear-gradient(135deg,rgba(0,165,150,.35),rgba(0,194,173,.2));border-color:#5be6c6;}
+.mpop-arrow{position:absolute;left:50%;transform:translateX(-50%) rotate(45deg);bottom:-7px;width:14px;height:14px;background:#0f1631;border-right:1px solid rgba(130,160,220,.3);border-bottom:1px solid rgba(130,160,220,.3);}
+
+.grid{display:grid;grid-template-columns:1fr;gap:16px;}
+@media(min-width:1200px){.grid{grid-template-columns:1fr 1fr;}}
+.card{background:rgba(255,255,255,.04);border:1px solid rgba(130,160,220,.16);border-radius:16px;padding:14px 14px 10px;box-shadow:0 10px 30px rgba(8,12,30,.35);scroll-margin-top:14px;}
+.card .title{display:flex;align-items:center;gap:9px;margin-bottom:4px;}
+.card .title .acc{width:9px;height:22px;border-radius:4px;}
+.card h3{font-size:15px;font-weight:600;}
+.card h3 .u{font-weight:400;color:#8ea0c4;font-size:12px;}
+.card .hint{color:#8ea0c4;font-size:11px;margin:2px 0 8px 18px;}
+.card .cbody{transition:all .25s ease;overflow:hidden;}
+.card.collapsed .cbody{max-height:0!important;opacity:0;margin:0;padding:0;}
+.card.collapsed .hint{display:none;}
+.slicer.collapsed .tiles{display:none;}
+.scroll{overflow-x:auto;overflow-y:hidden;}
+.cwrap{position:relative;width:100%;height:480px;}
+.progblocks{width:100%;}
+.prog-block{display:flex;align-items:stretch;margin-bottom:10px;border:1px solid rgba(130,160,220,.14);border-radius:12px;overflow:hidden;background:rgba(255,255,255,.02);}
+.prog-name{flex:0 0 130px;display:flex;align-items:center;justify-content:center;text-align:center;font-weight:700;font-size:13.5px;color:#eaf1ff;background:linear-gradient(180deg,rgba(47,109,246,.18),rgba(47,109,246,.05));padding:8px;border-right:1px solid rgba(130,160,220,.16);}
+.prog-chart{flex:1;position:relative;height:300px;min-width:0;}
+.footer{text-align:center;color:#6b7ba0;font-size:11px;margin-top:22px;padding-bottom:70px;}
+
+
+/* ===== RIGHT-SIDE PROGRAM SELECTOR ===== */
+.fab-prog{position:fixed;right:20px;bottom:20px;z-index:60;min-width:56px;height:56px;padding:0 6px;border-radius:28px;border:none;background:linear-gradient(135deg,#00a596,#00c2ad);color:#fff;font-size:24px;cursor:pointer;box-shadow:0 8px 24px rgba(0,194,173,.55);display:flex;align-items:center;justify-content:center;gap:6px;transition:.2s;}
+.fab-prog:hover{transform:translateY(-2px) scale(1.04);box-shadow:0 12px 30px rgba(0,194,173,.7);}
+.fab-prog:active{transform:scale(.96);}
+.fab-prog .fp-badge{min-width:22px;height:22px;padding:0 6px;border-radius:12px;background:#fff;color:#0b7d70;font-size:11.5px;font-weight:700;display:flex;align-items:center;justify-content:center;box-shadow:0 2px 6px rgba(0,0,0,.25);}
+.drawer-r{left:auto!important;right:0!important;border-right:none!important;border-left:1px solid rgba(130,160,220,.25)!important;transform:translateX(104%)!important;box-shadow:-6px 0 30px rgba(0,0,0,.4)!important;width:288px!important;}
+.drawer-r.open{transform:translateX(0)!important;}
+/* program section groups */
+.prog-sec{font-size:10.5px;letter-spacing:.7px;color:#8fb3ff;text-transform:uppercase;font-weight:700;padding:12px 6px 5px;margin-top:4px;border-top:1px solid rgba(130,160,220,.14);display:flex;align-items:center;gap:7px;}
+.prog-sec:first-child{border-top:none;margin-top:0;}
+.prog-sec .sdot{width:9px;height:9px;border-radius:3px;flex:0 0 auto;}
+.prog-sec .scnt{margin-left:auto;font-size:10px;color:#6b7ba0;font-weight:600;letter-spacing:0;}
+.prog-sec.hide{display:none;}
+.dr-tools{padding:10px 12px;border-bottom:1px solid rgba(130,160,220,.15);display:flex;flex-direction:column;gap:9px;}
+.prog-search{width:100%;padding:9px 12px;border-radius:10px;border:1px solid rgba(130,160,220,.3);background:rgba(255,255,255,.06);color:#eaf1ff;font-family:inherit;font-size:12.5px;outline:none;}
+.prog-search:focus{border-color:#63b3ff;background:rgba(99,179,255,.1);}
+.prog-search::placeholder{color:#7f90b5;}
+.dr-actions{display:flex;gap:8px;}
+.mini-btn{flex:1;padding:8px;border-radius:9px;border:1px solid rgba(130,160,220,.3);background:rgba(255,255,255,.06);color:#cfe0ff;font-family:inherit;font-size:12px;font-weight:600;cursor:pointer;transition:.16s;}
+.mini-btn:hover{background:rgba(99,179,255,.18);border-color:rgba(99,179,255,.55);}
+.drawer-r .tiles{flex-direction:column;gap:8px;}
+.drawer-r .tile{width:100%;text-align:left;}
+.tile.hide{display:none;}
+
+/* ===== FLOATING NAV ===== */
+.fab{position:fixed;left:20px;bottom:20px;z-index:60;width:56px;height:56px;border-radius:50%;border:none;background:linear-gradient(135deg,#2f6df6,#3d7bff);color:#fff;font-size:23px;cursor:pointer;box-shadow:0 8px 24px rgba(47,109,246,.55);display:flex;align-items:center;justify-content:center;transition:.2s;}
+.fab:hover{transform:translateY(-2px) scale(1.04);box-shadow:0 12px 30px rgba(47,109,246,.7);}
+.fab:active{transform:scale(.96);}
+.drawer{position:fixed;left:0;top:0;height:100vh;width:250px;z-index:80;background:linear-gradient(180deg,#141c38,#0e1530);border-right:1px solid rgba(130,160,220,.25);transform:translateX(-104%);transition:transform .28s ease;display:flex;flex-direction:column;box-shadow:6px 0 30px rgba(0,0,0,.4);}
+.drawer.open{transform:translateX(0);}
+.dr-head{display:flex;align-items:center;gap:10px;padding:16px 14px;border-bottom:1px solid rgba(130,160,220,.15);}
+.dr-head .acc{width:10px;height:26px;background:linear-gradient(#63b3ff,#2f6df6);border-radius:5px;flex:0 0 auto;}
+.dr-head .ttl{font-size:14px;font-weight:700;color:#eaf1ff;}
+.dr-close{margin-left:auto;width:32px;height:32px;border-radius:9px;border:1px solid rgba(130,160,220,.3);background:rgba(255,255,255,.06);color:#cfe0ff;font-size:15px;cursor:pointer;display:flex;align-items:center;justify-content:center;}
+.dr-close:hover{background:rgba(99,179,255,.2);}
+.dr-body{padding:10px 8px;overflow:auto;flex:1;}
+.dr-grp{font-size:10.5px;letter-spacing:.6px;color:#6b7ba0;text-transform:uppercase;padding:12px 10px 5px;margin-top:8px;border-top:1px solid rgba(130,160,220,.12);}
+.dr-grp:first-of-type{margin-top:0;border-top:none;}
+.nItem{display:flex;align-items:center;gap:11px;padding:11px 10px;border-radius:10px;cursor:pointer;color:#c3d0ec;font-size:12.5px;font-weight:500;transition:.16s;border:1px solid transparent;margin:2px 0;}
+.nItem:hover{background:rgba(99,179,255,.16);border-color:rgba(99,179,255,.4);color:#fff;}
+.nItem.active{background:linear-gradient(135deg,rgba(47,109,246,.35),rgba(61,123,255,.2));border-color:#63b3ff;color:#fff;box-shadow:inset 3px 0 0 #63b3ff;}
+.nItem .dot{width:11px;height:11px;border-radius:3px;flex:0 0 auto;}
+.backdrop{position:fixed;inset:0;background:rgba(4,8,20,.55);z-index:70;opacity:0;pointer-events:none;transition:.25s;}
+.backdrop.show{opacity:1;pointer-events:auto;}
+
+
+
+
+.appview{display:none;}
+.appview.on{display:block;}
+/* ===== DATA TAB ===== */
+.btnbar{display:flex;gap:10px;margin-bottom:14px;flex-wrap:wrap;}
+.bbtn{padding:10px 18px;border-radius:11px;border:none;font-family:inherit;font-size:12.5px;font-weight:700;cursor:pointer;transition:.18s;display:flex;align-items:center;gap:8px;}
+.bbtn .ic{font-size:16px;}
+.bbtn-connect{background:linear-gradient(135deg,#00a596,#00c2ad);color:#fff;box-shadow:0 6px 16px rgba(0,194,173,.4);}
+.bbtn-connect:hover{transform:translateY(-1px);box-shadow:0 8px 20px rgba(0,194,173,.55);}
+.bbtn-edit{background:rgba(99,179,255,.12);color:#cfe0ff;border:1px solid rgba(99,179,255,.5);}
+.bbtn-edit:hover{background:rgba(99,179,255,.22);}
+.bbtn-done{background:rgba(55,194,106,.1);color:#6b7ba0;border:1px solid rgba(55,194,106,.25);pointer-events:none;opacity:.5;transition:.3s;}
+.bbtn-done.active{pointer-events:auto;opacity:1;color:#5be6c6;border-color:#37c26a;background:rgba(55,194,106,.18);animation:glow 1.5s ease-in-out infinite alternate;}
+@keyframes glow{0%{box-shadow:0 0 6px rgba(55,194,106,.3);}100%{box-shadow:0 0 18px rgba(55,194,106,.7),0 0 40px rgba(55,194,106,.25);}}
+.bbtn-upload{background:rgba(246,167,35,.14);color:#ffd98a;border:1px solid rgba(246,167,35,.5);justify-content:center;text-align:center;}
+.bbtn-tpl{background:rgba(143,107,255,.12);color:#c78bff;border:1px solid rgba(143,107,255,.5);justify-content:center;text-align:center;}
+.bbtn-tpl:hover{background:rgba(143,107,255,.22);}
+.bbtn-export{background:rgba(16,185,129,.14);color:#6ee7b7;border:1px solid rgba(16,185,129,.5);justify-content:center;text-align:center;}
+.bbtn-export:hover{background:rgba(16,185,129,.24);}
+.bbtn-upload:hover{background:rgba(246,167,35,.25);}
+.err-ic{width:70px;height:70px;margin:0 auto 12px;border-radius:50%;background:linear-gradient(135deg,#e6484d,#ff5c8a);display:flex;align-items:center;justify-content:center;font-size:38px;color:#fff;box-shadow:0 8px 22px rgba(230,72,77,.5);}
+.sechead{display:flex;align-items:center;gap:10px;margin:18px 0 10px;}
+.sechead .num{width:26px;height:26px;border-radius:8px;background:linear-gradient(135deg,#2f6df6,#3d7bff);color:#fff;font-size:13px;font-weight:700;display:flex;align-items:center;justify-content:center;flex:0 0 auto;}
+.sechead .txt{font-size:14px;font-weight:700;}
+.sechead .sub{font-size:11px;color:#8ea0c4;font-weight:500;}
+.pslicer{background:rgba(255,255,255,.04);border:1px solid rgba(130,160,220,.18);border-radius:12px;padding:12px 14px;transition:all .25s ease;overflow:hidden;}
+.pslicer.collapsed{max-height:0!important;padding:0 14px;opacity:0;border-color:transparent;margin-bottom:0;}
+.monthgrp{margin-bottom:10px;}
+.monthgrp:last-child{margin-bottom:0;}
+.monthlbl{font-size:10.5px;font-weight:700;color:#8fb3ff;text-transform:uppercase;letter-spacing:.6px;margin-bottom:7px;}
+.pcards{display:flex;flex-wrap:wrap;gap:8px;}
+.pcard{position:relative;overflow:hidden;padding:9px 14px;border-radius:10px;font-size:12px;font-weight:600;cursor:pointer;border:1.5px solid rgba(130,160,220,.3);background:rgba(255,255,255,.05);color:#c3d0ec;transition:.16s;user-select:none;}
+.pcard:hover{filter:brightness(1.12);}
+.pcard.on{color:#fff;border-width:1.5px;box-shadow:0 6px 16px rgba(0,0,0,.35);transform:translateY(-1px);}
+.pcard .cdot{width:10px;height:10px;border-radius:3px;display:inline-block;margin-right:7px;vertical-align:middle;}
+.pcard .pn{font-size:9.5px;color:inherit;opacity:.8;display:block;}
+.pcard{padding-right:30px;}
+.pcard-x{position:absolute;top:4px;right:4px;width:18px;height:18px;border-radius:50%;border:none;background:rgba(0,0,0,.28);color:#fff;font-size:10px;line-height:1;cursor:pointer;display:flex;align-items:center;justify-content:center;opacity:.75;transition:.15s;}
+.pcard-x:hover{background:#e6484d;opacity:1;}
+.tablewrap{overflow-x:auto;-webkit-overflow-scrolling:touch;border:1px solid rgba(130,160,220,.18);border-radius:12px;margin-bottom:12px;}
+.tcap{font-size:12.5px;font-weight:700;color:#63b3ff;padding:10px 14px;background:rgba(99,179,255,.06);border-bottom:1px solid rgba(130,160,220,.18);}
+.dtable{border-collapse:collapse;width:100%;min-width:1250px;font-size:12px;}
+.dtable th.tgtcol{background:rgba(198,142,78,.28);color:#ffe9c9;}
+.dtable td.tgtcol input{background:rgba(198,142,78,.08);}
+.dtable th{background:rgba(47,109,246,.18);color:#dde6fb;font-weight:700;padding:9px 8px;text-align:center;white-space:nowrap;font-size:11px;position:sticky;top:0;}
+.dtable td{padding:0;border:1px solid rgba(130,160,220,.12);text-align:center;}
+.dtable td.prog{font-weight:700;color:#eaf1ff;text-align:left;padding:7px 10px;background:rgba(255,255,255,.03);white-space:nowrap;}
+.dtable .secrow td{background:linear-gradient(90deg,rgba(47,109,246,.22),rgba(47,109,246,.05));color:#8fb3ff;font-weight:700;text-transform:uppercase;letter-spacing:.6px;font-size:10.5px;padding:7px 10px;text-align:left;}
+.dtable td input{width:100%;min-width:70px;border:none;background:transparent;color:#c3d0ec;font-family:inherit;font-size:12px;text-align:center;padding:7px 6px;}
+.dtable td input:focus{outline:2px solid #00c2ad;background:rgba(0,194,173,.08);color:#fff;}
+.dtable td input:disabled{color:#7f90b5;cursor:not-allowed;}
+.newcap{display:flex;align-items:center;gap:14px;flex-wrap:wrap;}
+.nc-title{font-weight:700;color:#00c2ad;}
+.nc-fields{display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-left:auto;}
+.np-name{padding:7px 10px;border-radius:8px;border:1px solid rgba(0,194,173,.5);background:rgba(0,194,173,.08);color:#eaf1ff;font-family:inherit;font-size:12px;min-width:170px;}
+.np-name:disabled{opacity:.6;}
+.np-month{padding:7px 10px;border-radius:8px;border:1px solid rgba(130,160,220,.35);background:rgba(255,255,255,.06);color:#eaf1ff;font-family:inherit;font-size:12px;}
+.np-confirm{display:flex;align-items:center;gap:7px;font-size:11.5px;color:#cfe0ff;font-weight:600;cursor:pointer;}
+.np-confirm input{width:18px;height:18px;accent-color:#00c2ad;cursor:pointer;}
+.newperiod.confirmed{border-color:rgba(0,194,173,.6);box-shadow:0 0 0 2px rgba(0,194,173,.15);}
+.newperiod .newcap{background:rgba(0,194,173,.08);}
+.np-remove{padding:7px 12px;border-radius:8px;border:1px solid rgba(230,72,77,.5);background:rgba(230,72,77,.12);color:#ff9aa0;font-family:inherit;font-size:12px;font-weight:700;cursor:pointer;transition:.16s;}
+.np-remove:hover{background:rgba(230,72,77,.25);color:#fff;}
+.emptybox{border:1.5px dashed rgba(130,160,220,.3);border-radius:12px;padding:20px;text-align:center;color:#8ea0c4;font-size:12px;}
+/* ===== MODALS / PROGRESS ===== */
+.overlay{position:fixed;inset:0;background:rgba(4,8,20,.65);display:none;align-items:center;justify-content:center;z-index:200;}
+.overlay.show{display:flex;}
+.modal{background:linear-gradient(180deg,#161e3c,#0f1631);border:1px solid rgba(130,160,220,.3);border-radius:18px;padding:26px 28px;max-width:360px;text-align:center;box-shadow:0 20px 50px rgba(0,0,0,.55);}
+.modal h3{font-size:16px;margin-bottom:8px;}
+.modal p{font-size:12.5px;color:#c3d0ec;line-height:1.55;margin-bottom:18px;}
+.modal .row{display:flex;gap:10px;justify-content:center;}
+.mbtn{padding:11px 20px;border-radius:11px;border:none;font-family:inherit;font-size:13px;font-weight:700;cursor:pointer;}
+.mbtn-yes{background:linear-gradient(135deg,#00a596,#00c2ad);color:#fff;}
+.mbtn-no{background:rgba(255,255,255,.08);color:#cfe0ff;border:1px solid rgba(130,160,220,.3);}
+.ring{width:120px;height:120px;margin:0 auto 14px;position:relative;}
+.ring svg{transform:rotate(-90deg);}
+.ring .pctxt{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;font-size:24px;font-weight:700;color:#fff;}
+.done-ic{width:70px;height:70px;margin:0 auto 12px;border-radius:50%;background:linear-gradient(135deg,#00a596,#00c2ad);display:flex;align-items:center;justify-content:center;font-size:38px;color:#fff;box-shadow:0 8px 22px rgba(0,194,173,.5);}
+/* ===== MOBILE ===== */
+@media(max-width:640px){
+  .toprow h1{font-size:16px;}
+  .itab{width:38px;height:38px;font-size:18px;}
+  .btnbar{gap:8px;}
+  .bbtn{padding:9px 14px;font-size:12px;flex:1;}
+  .menu{left:0;right:0;min-width:0;}
+  .sechead .sub{display:block;font-size:10px;}
+  .nc-fields{margin-left:0;width:100%;}
+  .np-name{min-width:0;flex:1;}
+  .modal{max-width:92vw;padding:22px 18px;}
+}
+
+</style>
+</head>
+<body>
+<div class="toprow">
+  <div class="bar-accent"></div>
+  <h1>Weekly Performance</h1>
+  <div class="icontabs">
+    <div class="itab on" data-av="vis" title="Visuals">&#128202;</div>
+    <div class="itab" data-av="data" title="Data">&#128203;</div>
+  </div>
+</div>
+<div class="appview on" id="av_vis">
+
+<!-- month filter moved to bottom-center floating button (see #fabMonth) -->
+
+<!-- program slicer moved to right-side floating drawer -->
+
+<div class="grid" id="grid">
+  <div class="card" id="card_enroll"><div class="title"><span class="acc" style="background:#3d7bff"></span><h3>Enrollments</h3><button class="collapse-btn" data-toggle="card">&#8722;</button></div><div class="hint">Bar &middot; Y = Programs, X = values (blocks of 100)</div><div class="cbody"><div class="scroll"><div class="progblocks" id="blocks_enroll"></div></div></div></div>
+  <div class="card" id="card_rev"><div class="title"><span class="acc" style="background:#00c2ad"></span><h3>Revenue <span class="u">(&#8377; Cr / Lakhs)</span></h3><button class="collapse-btn" data-toggle="card">&#8722;</button></div><div class="hint">Bar &middot; Indian currency formatting</div><div class="cbody"><div class="scroll"><div class="progblocks" id="blocks_rev"></div></div></div></div>
+  <div class="card" id="card_blended"><div class="title"><span class="acc" style="background:#f6a723"></span><h3>Blended Leads</h3><button class="collapse-btn" data-toggle="card">&#8722;</button></div><div class="hint">Bar &middot; Y = Programs, X = values</div><div class="cbody"><div class="scroll"><div class="progblocks" id="blocks_blended"></div></div></div></div>
+  <div class="card" id="card_search"><div class="title"><span class="acc" style="background:#ff5c8a"></span><h3>Search Leads</h3><button class="collapse-btn" data-toggle="card">&#8722;</button></div><div class="hint">Bar &middot; Y = Programs, X = values</div><div class="cbody"><div class="scroll"><div class="progblocks" id="blocks_search"></div></div></div></div>
+  <div class="card" id="card_meta"><div class="title"><span class="acc" style="background:#8f6bff"></span><h3>Meta Leads</h3><button class="collapse-btn" data-toggle="card">&#8722;</button></div><div class="hint">Bar &middot; Y = Programs, X = values</div><div class="cbody"><div class="scroll"><div class="progblocks" id="blocks_meta"></div></div></div></div>
+  <div class="card" id="card_l2r"><div class="title"><span class="acc" style="background:#37c26a"></span><h3>L2R %</h3><button class="collapse-btn" data-toggle="card">&#8722;</button></div><div class="hint">Bar &middot; lead-to-registration %</div><div class="cbody"><div class="scroll"><div class="progblocks" id="blocks_l2r"></div></div></div></div>
+  <div class="card" id="card_sl2r"><div class="title"><span class="acc" style="background:#ffb01f"></span><h3>Search L2R</h3><button class="collapse-btn" data-toggle="card">&#8722;</button></div><div class="hint">Bar &middot; search lead-to-registration %</div><div class="cbody"><div class="scroll"><div class="progblocks" id="blocks_sl2r"></div></div></div></div>
+  <div class="card" id="card_ml2r"><div class="title"><span class="acc" style="background:#ff7a59"></span><h3>Meta L2R</h3><button class="collapse-btn" data-toggle="card">&#8722;</button></div><div class="hint">Bar &middot; meta lead-to-registration %</div><div class="cbody"><div class="scroll"><div class="progblocks" id="blocks_ml2r"></div></div></div></div>
+  <div class="card" id="card_bcpl"><div class="title"><span class="acc" style="background:#e6484d"></span><h3>Blended CPL <span class="u">(&#8377; / lead)</span></h3><button class="collapse-btn" data-toggle="card">&#8722;</button></div><div class="hint">Bar &middot; blended cost per lead</div><div class="cbody"><div class="scroll"><div class="progblocks" id="blocks_bcpl"></div></div></div></div>
+  <div class="card" id="card_scpl"><div class="title"><span class="acc" style="background:#2bb3c0"></span><h3>Search CPL <span class="u">(&#8377; / lead)</span></h3><button class="collapse-btn" data-toggle="card">&#8722;</button></div><div class="hint">Bar &middot; search cost per lead</div><div class="cbody"><div class="scroll"><div class="progblocks" id="blocks_scpl"></div></div></div></div>
+  <div class="card" id="card_mcpl"><div class="title"><span class="acc" style="background:#c78bff"></span><h3>Meta CPL <span class="u">(&#8377; / lead)</span></h3><button class="collapse-btn" data-toggle="card">&#8722;</button></div><div class="hint">Bar &middot; meta cost per lead</div><div class="cbody"><div class="scroll"><div class="progblocks" id="blocks_mcpl"></div></div></div></div>
+</div>
+
+</div><!-- /av_vis -->
+
+<div class="appview" id="av_data">
+  <div class="btnbar">
+    <button class="bbtn bbtn-connect" id="btnConnect"><span class="ic">&#9889;</span> Connect &amp; Update</button>
+    <button class="bbtn bbtn-edit" id="btnEdit"><span class="ic">&#9998;</span> Edit</button>
+    <button class="bbtn bbtn-done dormant" id="btnDone"><span class="ic">&#10003;</span> Done</button>
+    <button class="bbtn bbtn-upload" id="btnUpload"><span class="ic">&#11121;</span> Upload Table</button>
+    <button class="bbtn bbtn-tpl" id="btnTemplate"><span class="ic">&#11123;</span> Download Template</button>
+    <button class="bbtn bbtn-export" id="btnExport"><span class="ic">&#128190;</span> Export Data</button>
+    <input type="file" id="fileUpload" accept=".csv,.xlsx,.xls" style="display:none">
+  </div>
+
+  <div class="sechead"><span class="num">1</span><span><span class="txt">Select Period</span> <span class="sub">&mdash; pick one</span></span><button class="collapse-btn" id="slicerToggle" title="Collapse / expand">&#8722;</button></div>
+  <div class="pslicer" id="pslicer"></div>
+
+  <div class="sechead"><span class="num">2</span><span><span class="txt">Current Data</span> <span class="sub">&mdash; editable values for the selected period (all 11 measures)</span></span></div>
+  <div id="currentTable"></div>
+
+  <div class="sechead"><span class="num">3</span><span><span class="txt">New Period Tables</span> <span class="sub">&mdash; new table will show here</span></span></div>
+  <div id="newTables"><div class="emptybox" id="newEmpty">New table will show here.</div></div>
+</div><!-- /av_data -->
+
+<!-- MODALS -->
+<div class="overlay" id="ovEditMsg"><div class="modal">
+  <h3>&#9998; Edit Mode</h3>
+  <p>The table is now unlocked. Modify your data, then click the glowing <b>&#10003; Done</b> button when you are finished. The table will lock again.</p>
+  <div class="row"><button class="mbtn mbtn-yes" id="editMsgOk">Got it</button></div>
+</div></div>
+<div class="overlay" id="ovError"><div class="modal">
+  <div class="err-ic">&#10007;</div>
+  <h3>Layout Mismatch</h3>
+  <p id="errMsg">The uploaded file columns do not match the expected layout.</p>
+  <div class="row"><button class="mbtn mbtn-no" id="errOk">OK</button></div>
+</div></div>
+<div class="overlay" id="ovConfirm"><div class="modal">
+  <h3>Update charts with new data?</h3>
+  <p>This will recalculate and refresh all charts using the values currently in the grid. Continue?</p>
+  <div class="row"><button class="mbtn mbtn-yes" id="cYes">Yes, update</button><button class="mbtn mbtn-no" id="cNo">No, cancel</button></div>
+</div></div>
+<div class="overlay" id="ovProg"><div class="modal">
+  <div class="ring"><svg width="120" height="120"><circle cx="60" cy="60" r="52" stroke="rgba(255,255,255,.12)" stroke-width="10" fill="none"></circle><circle id="ringFg" cx="60" cy="60" r="52" stroke="#00c2ad" stroke-width="10" fill="none" stroke-linecap="round" stroke-dasharray="326.7" stroke-dashoffset="326.7"></circle></svg><div class="pctxt" id="pctxt">0%</div></div>
+  <h3 id="progTitle">Updating charts...</h3>
+  <p id="progMsg">Reading grid &middot; recalculating &middot; rendering</p>
+</div></div>
+<div class="overlay" id="ovDone"><div class="modal">
+  <div class="done-ic">&#10003;</div>
+  <h3>Done!</h3>
+  <p id="doneMsg">Charts updated with your new data. The data remains visible in the Data tab.</p>
+  <div class="row"><button class="mbtn mbtn-yes" id="dOk">Great</button></div>
+</div></div>
+
+<div class="footer">Source: Weekly Report 1.5 &middot; Periods normalized (31th&rarr;31st July) &middot; All charts are bar charts &middot; Built for Android &amp; iOS</div>
+
+
+<!-- RIGHT-SIDE PROGRAM SELECTOR -->
+<button class="fab-prog" id="fabProg" title="Select Program(s)"><span class="fp-ic">&#9781;</span><span class="fp-badge" id="fpBadge"></span></button>
+<div class="backdrop" id="backdropP"></div>
+<aside class="drawer drawer-r" id="drawerP">
+  <div class="dr-head">
+    <span class="acc" style="background:linear-gradient(#63b3ff,#2f6df6)"></span>
+    <span class="ttl">Select Program(s)</span>
+    <span class="count" id="selCount" style="margin-left:6px"></span>
+    <button class="dr-close" id="drCloseP" title="Close">&#10005;</button>
+  </div>
+  <div class="dr-tools">
+    <input type="text" id="progSearch" class="prog-search" placeholder="Search programs...">
+    <div class="dr-actions">
+      <button class="mini-btn" id="btnAll">All</button>
+      <button class="mini-btn" id="btnClear">Clear</button>
+    </div>
+  </div>
+  <div class="dr-body"><div class="tiles" id="tiles"></div></div>
+</aside>
+
+<!-- BOTTOM-CENTER MONTH FILTER (floating) -->
+<button class="fab-month" id="fabMonth" title="Filter by Month"><span class="fm-ic">&#128197;</span><span class="fm-lab">Month</span><span class="fm-badge" id="fmBadge">All</span></button>
+<div class="mpop-back" id="mpopBack"></div>
+<div class="mpop" id="mpop">
+  <div class="mpop-head"><span>&#128197;</span> Filter by Month</div>
+  <div class="mpop-list" id="mpopList"></div>
+  <div class="mpop-arrow"></div>
+</div>
+
+<!-- FLOATING NAV -->
+<button class="fab" id="fab" title="Navigate">&#9776;</button>
+<div class="backdrop" id="backdrop"></div>
+<aside class="drawer" id="drawer">
+  <div class="dr-head">
+    <span class="acc"></span>
+    <span class="ttl">Charts</span>
+    <button class="dr-close" id="drClose" title="Close">&#10005;</button>
+  </div>
+  <div class="dr-body">
+    <div class="nItem" data-target="card_enroll"><span class="dot" style="background:#3d7bff"></span>Enrollments</div>
+    <div class="nItem" data-target="card_rev"><span class="dot" style="background:#00c2ad"></span>Revenue</div>
+    <div class="nItem" data-target="card_blended"><span class="dot" style="background:#f6a723"></span>Blended Leads</div>
+    <div class="nItem" data-target="card_search"><span class="dot" style="background:#ff5c8a"></span>Search Leads</div>
+    <div class="nItem" data-target="card_meta"><span class="dot" style="background:#8f6bff"></span>Meta Leads</div>
+    <div class="nItem" data-target="card_l2r"><span class="dot" style="background:#37c26a"></span>L2R %</div>
+    <div class="nItem" data-target="card_sl2r"><span class="dot" style="background:#ffb01f"></span>Search L2R</div>
+    <div class="nItem" data-target="card_ml2r"><span class="dot" style="background:#ff7a59"></span>Meta L2R</div>
+    <div class="nItem" data-target="card_bcpl"><span class="dot" style="background:#e6484d"></span>Blended CPL</div>
+    <div class="nItem" data-target="card_scpl"><span class="dot" style="background:#2bb3c0"></span>Search CPL</div>
+    <div class="nItem" data-target="card_mcpl"><span class="dot" style="background:#c78bff"></span>Meta CPL</div>
+  </div>
+</aside>
+
+<script>
+const DATA = {"periods":["1st to 12th July","1st to 20th July","1st to 31st July","1st to 4th August","1st to 10th August","1st to 16th August"],"short":["1\u201312 Jul","1\u201320 Jul","1\u201331 Jul","1\u20134 Aug","1\u201310 Aug","1\u201316 Aug"],"programs":["ACCA","ACCA Retail","AIPM IBM","CFA","CFA Retail","CFOP","CIBOP","CMA","CMA Retail","CPA","DMPRO","FMVA","FRM","FRM Retail","IIM C EPIBCM","IIM C EPPEVC","IIM L EMP SML","IIM L EP AIB","IIM L GSLP","IIM L GSLP CFO","IIM L GSLP CHRO","IIM L GSLP COO","IIML - EPSDMAI","ISB CFO","KPMG FAP","KPMG PM","PG Analytics","PG Digital Marketing","PGA PRO","PGBAF","PGFAP","PWC Gen AI"],"er":{"ACCA":{"1st to 12th July":{"enroll":25.0,"rev":3253000.0},"1st to 20th July":{"enroll":52.0,"rev":6464000.0},"1st to 31st July":{"enroll":105.0,"rev":12110992.0},"1st to 10th August":{"enroll":3.0,"rev":425000.0},"1st to 16th August":{"enroll":18.0,"rev":1995250.0}},"ACCA Retail":{"1st to 4th August":{"enroll":11.0,"rev":1889000.0},"1st to 12th July":{"enroll":44.0,"rev":7345600.0},"1st to 20th July":{"enroll":92.0,"rev":15437200.0},"1st to 31st July":{"enroll":164.0,"rev":27135960.0},"1st to 10th August":{"enroll":39.0,"rev":6146000.0},"1st to 16th August":{"enroll":84.0,"rev":13511400.0}},"CFA":{"1st to 4th August":{"enroll":3.0,"rev":120000.0},"1st to 12th July":{"enroll":24.0,"rev":1129000.0},"1st to 20th July":{"enroll":41.0,"rev":1921000.0},"1st to 31st July":{"enroll":81.0,"rev":3801000.0},"1st to 10th August":{"enroll":5.0,"rev":205000.0},"1st to 16th August":{"enroll":20.0,"rev":968850.0}},"AIPM IBM":{"1st to 12th July":{"enroll":3.0,"rev":240000.0},"1st to 20th July":{"enroll":6.0,"rev":525000.0},"1st to 31st July":{"enroll":13.0,"rev":1095000.0},"1st to 10th August":{"enroll":3.0,"rev":230000.0},"1st to 16th August":{"enroll":5.0,"rev":390000.0}},"CFA Retail":{"1st to 4th August":{"enroll":3.0,"rev":265000.0},"1st to 12th July":{"enroll":13.0,"rev":958000.0},"1st to 20th July":{"enroll":26.0,"rev":2088000.0},"1st to 31st July":{"enroll":44.0,"rev":3369002.0},"1st to 10th August":{"enroll":7.0,"rev":485000.0},"1st to 16th August":{"enroll":16.0,"rev":941000.0}},"CIBOP":{"1st to 4th August":{"enroll":32.0,"rev":4055000.0},"1st to 12th July":{"enroll":151.0,"rev":19279500.0},"1st to 20th July":{"enroll":273.0,"rev":34590400.0},"1st to 10th August":{"enroll":89.0,"rev":11289501.0},"1st to 31st July":{"enroll":457.0,"rev":57078356.0},"1st to 16th August":{"enroll":184.0,"rev":23298701.0}},"CMA":{"1st to 4th August":{"enroll":9.0,"rev":603000.0},"1st to 12th July":{"enroll":33.0,"rev":2212000.0},"1st to 20th July":{"enroll":55.0,"rev":3751000.0},"1st to 10th August":{"enroll":18.0,"rev":1204000.0},"1st to 31st July":{"enroll":101.0,"rev":6696300.0},"1st to 16th August":{"enroll":34.0,"rev":2262000.0}},"CFOP":{"1st to 31st July":{"enroll":3.0,"rev":365000.0},"1st to 16th August":{"enroll":1.0,"rev":125000.0}},"CMA Retail":{"1st to 4th August":{"enroll":9.0,"rev":745000.0},"1st to 12th July":{"enroll":57.0,"rev":4964000.0},"1st to 20th July":{"enroll":106.0,"rev":9083200.0},"1st to 10th August":{"enroll":28.0,"rev":2450000.0},"1st to 31st July":{"enroll":170.0,"rev":14516502.0},"1st to 16th August":{"enroll":70.0,"rev":5997200.0}},"DMPRO":{"1st to 4th August":{"enroll":23.0,"rev":1470000.0},"1st to 12th July":{"enroll":33.0,"rev":2239500.0},"1st to 20th July":{"enroll":48.0,"rev":3328500.0},"1st to 10th August":{"enroll":35.0,"rev":2325000.0},"1st to 31st July":{"enroll":67.0,"rev":4619890.0},"1st to 16th August":{"enroll":50.0,"rev":3360000.0}},"FMVA":{"1st to 4th August":{"enroll":1.0,"rev":45000.0},"1st to 12th July":{"enroll":5.0,"rev":183000.0},"1st to 20th July":{"enroll":11.0,"rev":425000.0},"1st to 10th August":{"enroll":1.0,"rev":30000.0},"1st to 31st July":{"enroll":34.0,"rev":1392500.0},"1st to 16th August":{"enroll":6.0,"rev":222100.0}},"CPA":{"1st to 12th July":{"enroll":9.0,"rev":644300.0},"1st to 20th July":{"enroll":16.0,"rev":1012300.0},"1st to 10th August":{"enroll":3.0,"rev":196000.0},"1st to 31st July":{"enroll":29.0,"rev":1899300.0},"1st to 16th August":{"enroll":9.0,"rev":628050.0}},"FRM":{"1st to 4th August":{"enroll":6.0,"rev":475500.0},"1st to 12th July":{"enroll":17.0,"rev":1143000.0},"1st to 20th July":{"enroll":38.0,"rev":2486000.0},"1st to 10th August":{"enroll":3.0,"rev":205000.0},"1st to 31st July":{"enroll":69.0,"rev":4521000.0},"1st to 16th August":{"enroll":27.0,"rev":1982200.0}},"IIM L GSLP":{"1st to 4th August":{"enroll":1.0,"rev":737500.0},"1st to 10th August":{"enroll":1.0,"rev":737500.0},"1st to 16th August":{"enroll":1.0,"rev":737500.0}},"ISB CFO":{"1st to 4th August":{"enroll":1.0,"rev":413000.0},"1st to 10th August":{"enroll":1.0,"rev":413000.0},"1st to 12th July":{"enroll":3.0,"rev":1439600.0},"1st to 16th August":{"enroll":6.0,"rev":3245000.0},"1st to 20th July":{"enroll":6.0,"rev":2855600.0},"1st to 31st July":{"enroll":13.0,"rev":6474099.0}},"KPMG FAP":{"1st to 4th August":{"enroll":4.0,"rev":239999.0},"1st to 10th August":{"enroll":7.0,"rev":360000.0},"1st to 12th July":{"enroll":20.0,"rev":1199998.0},"1st to 16th August":{"enroll":9.0,"rev":480000.0},"1st to 20th July":{"enroll":43.0,"rev":2614994.0},"1st to 31st July":{"enroll":61.0,"rev":3724993.0}},"IIM C EPIBCM":{"1st to 12th July":{"enroll":2.0,"rev":1107901.0},"1st to 20th July":{"enroll":4.0,"rev":2148606.0},"1st to 31st July":{"enroll":6.0,"rev":3256506.0},"1st to 16th August":{"enroll":1.0,"rev":553950.0}},"PG Analytics":{"1st to 4th August":{"enroll":19.0,"rev":2495000.0},"1st to 10th August":{"enroll":49.0,"rev":6396820.0},"1st to 12th July":{"enroll":93.0,"rev":12315000.0},"1st to 16th August":{"enroll":105.0,"rev":13671820.0},"1st to 20th July":{"enroll":160.0,"rev":21161201.0},"1st to 31st July":{"enroll":250.0,"rev":32432502.0}},"FRM Retail":{"1st to 10th August":{"enroll":10.0,"rev":747500.0}},"IIM C EPPEVC":{"1st to 12th July":{"enroll":1.0,"rev":413000.0},"1st to 20th July":{"enroll":2.0,"rev":859040.0},"1st to 31st July":{"enroll":4.0,"rev":1869120.0}},"PG Digital Marketing":{"1st to 4th August":{"enroll":1.0,"rev":80000.0},"1st to 12th July":{"enroll":3.0,"rev":319000.0},"1st to 20th July":{"enroll":3.0,"rev":329000.0}},"IIM L EMP SML":{"1st to 10th August":{"enroll":2.0,"rev":655490.0},"1st to 20th July":{"enroll":3.0,"rev":972320.0},"1st to 16th August":{"enroll":5.0,"rev":1616290.0},"1st to 31st July":{"enroll":5.0,"rev":1621320.0}},"IIM L EP AIB":{"1st to 12th July":{"enroll":5.0,"rev":1657428.0},"1st to 20th July":{"enroll":7.0,"rev":2408616.0},"1st to 31st July":{"enroll":9.0,"rev":2990476.0}},"PGA PRO":{"1st to 4th August":{"enroll":4.0,"rev":224000.0},"1st to 10th August":{"enroll":11.0,"rev":692000.0},"1st to 12th July":{"enroll":8.0,"rev":472000.0},"1st to 16th August":{"enroll":20.0,"rev":1249000.0},"1st to 20th July":{"enroll":20.0,"rev":1162000.0},"1st to 31st July":{"enroll":43.0,"rev":2597000.0}},"IIM L GSLP CHRO":{"1st to 12th July":{"enroll":2.0,"rev":767000.0},"1st to 20th July":{"enroll":2.0,"rev":767000.0},"1st to 31st July":{"enroll":3.0,"rev":1317500.0}},"PGBAF":{"1st to 4th August":{"enroll":1.0,"rev":49900.0},"1st to 10th August":{"enroll":7.0,"rev":349300.0},"1st to 12th July":{"enroll":3.0,"rev":149700.0},"1st to 16th August":{"enroll":16.0,"rev":798400.0},"1st to 20th July":{"enroll":9.0,"rev":449100.0},"1st to 31st July":{"enroll":23.0,"rev":1167900.0}},"IIM L GSLP CFO":{"1st to 10th August":{"enroll":1.0,"rev":354000.0},"1st to 20th July":{"enroll":2.0,"rev":944000.0},"1st to 16th August":{"enroll":1.0,"rev":354000.0},"1st to 31st July":{"enroll":4.0,"rev":1693300.0}},"IIM L GSLP COO":{"1st to 12th July":{"enroll":2.0,"rev":944000.0},"1st to 10th August":{"enroll":1.0,"rev":413000.0},"1st to 16th August":{"enroll":2.0,"rev":944000.0},"1st to 20th July":{"enroll":4.0,"rev":1770000.0},"1st to 31st July":{"enroll":5.0,"rev":2159400.0}},"PGFAP":{"1st to 4th August":{"enroll":1.0,"rev":120000.0},"1st to 10th August":{"enroll":1.0,"rev":120000.0},"1st to 12th July":{"enroll":7.0,"rev":1060000.0},"1st to 16th August":{"enroll":3.0,"rev":360000.0},"1st to 20th July":{"enroll":8.0,"rev":1200000.0},"1st to 31st July":{"enroll":8.0,"rev":1207400.0}},"IIML - EPSDMAI":{"1st to 12th July":{"enroll":2.0,"rev":531000.0},"1st to 16th August":{"enroll":3.0,"rev":619500.0},"1st to 20th July":{"enroll":5.0,"rev":1241006.0},"1st to 31st July":{"enroll":7.0,"rev":1595506.0}},"PWC Gen AI":{"1st to 4th August":{"enroll":1.0,"rev":60000.0},"1st to 10th August":{"enroll":5.0,"rev":279000.0},"1st to 12th July":{"enroll":6.0,"rev":391000.0},"1st to 20th July":{"enroll":10.0,"rev":629000.0},"1st to 31st July":{"enroll":17.0,"rev":986000.0}},"KPMG PM":{"1st to 10th August":{"enroll":2.0,"rev":89000.0},"1st to 12th July":{"enroll":15.0,"rev":798000.0},"1st to 16th August":{"enroll":9.0,"rev":491000.0},"1st to 20th July":{"enroll":21.0,"rev":1146000.0},"1st to 31st July":{"enroll":30.0,"rev":1589000.0}}},"leads":{"CIBOP":{"1st to 12th July":{"blended":2555.0,"search":1328.0,"meta":1227.0,"l2r":0.025785941363475805,"search_l2r":0.04292168674698795,"meta_l2r":0.010594947025264874,"blended_cpl":1244.07,"search_cpl":1852.58,"meta_cpl":585.47},"1st to 20th July":{"blended":4124.0,"search":2141.0,"meta":1983.0,"l2r":0.02736098852603707,"search_l2r":0.044371788883699206,"meta_l2r":0.011094301563287948,"blended_cpl":1280.07,"search_cpl":1895.17,"meta_cpl":615.97},"1st to 31st July":{"blended":6332.0,"search":3553.0,"meta":2779.0,"l2r":0.03210018713113574,"search_l2r":0.04953560371517028,"meta_l2r":0.01187477509895646,"blended_cpl":1343.82,"search_cpl":1896.22,"meta_cpl":637.58},"1st to 4th August":{"blended":806.0,"search":364.0,"meta":442.0,"l2r":0.008264462809917356,"search_l2r":0.038461538461538464,"meta_l2r":0.0,"blended_cpl":1125.18,"search_cpl":2144.13,"meta_cpl":286.05},"1st to 10th August":{"blended":1886.0,"search":949.0,"meta":937.0,"l2r":0.018615751789976133,"search_l2r":0.029504741833508957,"meta_l2r":0.010672358591248666,"blended_cpl":1142.65,"search_cpl":1905.17,"meta_cpl":370.37},"1st to 16th August":{"blended":3271.0,"search":1697.0,"meta":1574.0,"l2r":0.026585433397950706,"search_l2r":0.043606364172068354,"meta_l2r":0.010165184243964422,"blended_cpl":1196.89,"search_cpl":1906.43,"meta_cpl":431.91}},"PG Analytics":{"1st to 12th July":{"blended":2315.0,"search":1281.0,"meta":1034.0,"l2r":0.02040816326530612,"search_l2r":0.03356752537080406,"meta_l2r":0.0038684719535783366,"blended_cpl":1176.29,"search_cpl":1638.58,"meta_cpl":603.58},"1st to 20th July":{"blended":3316.0,"search":2080.0,"meta":1236.0,"l2r":0.024791006053617757,"search_l2r":0.036057692307692304,"meta_l2r":0.006472491909385114,"blended_cpl":1265.65,"search_cpl":1622.82,"meta_cpl":664.59},"1st to 31st July":{"blended":4696.0,"search":3213.0,"meta":1483.0,"l2r":0.026747720364741642,"search_l2r":0.036414565826330535,"meta_l2r":0.007417397167902899,"blended_cpl":1328.73,"search_cpl":1633.54,"meta_cpl":668.34},"1st to 4th August":{"blended":497.0,"search":316.0,"meta":181.0,"l2r":0.007383100902378999,"search_l2r":0.02531645569620253,"meta_l2r":0.0055248618784530384,"blended_cpl":1148.95,"search_cpl":1540.57,"meta_cpl":465.24},"1st to 10th August":{"blended":1309.0,"search":717.0,"meta":592.0,"l2r":0.020618556701030927,"search_l2r":0.03626220362622036,"meta_l2r":0.0033783783783783786,"blended_cpl":1303.53,"search_cpl":1988.06,"meta_cpl":474.45},"1st to 16th August":{"blended":2637.0,"search":1337.0,"meta":1300.0,"l2r":0.02454212454212454,"search_l2r":0.04637247569184742,"meta_l2r":0.0038461538461538464,"blended_cpl":1156.26,"search_cpl":1888.63,"meta_cpl":403.04}},"PGBAF":{"1st to 12th July":{"blended":95.0,"search":18.0,"meta":77.0,"l2r":0.0,"search_l2r":0.0,"meta_l2r":0.0,"blended_cpl":261.6,"search_cpl":342.24,"meta_cpl":242.75},"1st to 20th July":{"blended":140.0,"search":36.0,"meta":104.0,"l2r":0.0,"search_l2r":0.0,"meta_l2r":0.0,"blended_cpl":260.76,"search_cpl":322.85,"meta_cpl":239.27},"1st to 31st July":{"blended":163.0,"search":58.0,"meta":105.0,"l2r":0.006097560975609756,"search_l2r":0.017241379310344827,"meta_l2r":0.0,"blended_cpl":292.25,"search_cpl":388.17,"meta_cpl":239.27},"1st to 10th August":{"blended":26.0,"search":25.0,"meta":1.0,"l2r":0.0,"search_l2r":0.0,"meta_l2r":0.0,"blended_cpl":149.1,"search_cpl":155.07,"meta_cpl":0.0},"1st to 16th August":{"blended":44.0,"search":42.0,"meta":2.0,"l2r":0.022222222222222223,"search_l2r":0.0,"meta_l2r":0.5,"blended_cpl":203.95,"search_cpl":213.66,"meta_cpl":0.0}},"ACCA Retail":{"1st to 12th July":{"blended":649.0,"search":383.0,"meta":266.0,"l2r":0.02564102564102564,"search_l2r":0.0391644908616188,"meta_l2r":0.0037593984962406013,"blended_cpl":1239.57,"search_cpl":1479.38,"meta_cpl":894.28},"1st to 20th July":{"blended":1358.0,"search":631.0,"meta":727.0,"l2r":0.023154848046309694,"search_l2r":0.04120443740095087,"meta_l2r":0.005502063273727648,"blended_cpl":1111.75,"search_cpl":1522.52,"meta_cpl":755.22},"1st to 31st July":{"blended":2187.0,"search":1107.0,"meta":1080.0,"l2r":0.02541239411502452,"search_l2r":0.04245709123757904,"meta_l2r":0.004629629629629629,"blended_cpl":1111.39,"search_cpl":1528.57,"meta_cpl":683.79},"1st to 4th August":{"blended":953.0,"search":151.0,"meta":802.0,"l2r":0.0023320895522388058,"search_l2r":0.033112582781456956,"meta_l2r":0.0,"blended_cpl":421.19,"search_cpl":1365.85,"meta_cpl":243.33},"1st to 10th August":{"blended":1374.0,"search":309.0,"meta":1065.0,"l2r":0.015770609318996417,"search_l2r":0.06472491909385113,"meta_l2r":0.0009389671361502347,"blended_cpl":499.98,"search_cpl":1429.95,"meta_cpl":230.15},"1st to 16th August":{"blended":2085.0,"search":608.0,"meta":1477.0,"l2r":0.018190298507462687,"search_l2r":0.054276315789473686,"meta_l2r":0.002031144211238998,"blended_cpl":588.51,"search_cpl":1476.05,"meta_cpl":223.16}},"CFA Retail":{"1st to 12th July":{"blended":51.0,"search":47.0,"meta":4.0,"l2r":0.06451612903225806,"search_l2r":0.0851063829787234,"meta_l2r":0.0,"blended_cpl":940.29,"search_cpl":624.68,"meta_cpl":4648.76},"1st to 20th July":{"blended":105.0,"search":81.0,"meta":24.0,"l2r":0.03333333333333333,"search_l2r":0.08641975308641975,"meta_l2r":0.0,"blended_cpl":908.23,"search_cpl":643.85,"meta_cpl":1800.49},"1st to 31st July":{"blended":178.0,"search":138.0,"meta":40.0,"l2r":0.04451038575667656,"search_l2r":0.10869565217391304,"meta_l2r":0.0,"blended_cpl":825.74,"search_cpl":708.82,"meta_cpl":1229.14},"1st to 4th August":{"blended":24.0,"search":24.0,"meta":0.0,"l2r":0.011235955056179775,"search_l2r":0.041666666666666664,"meta_l2r":0.0,"blended_cpl":739.67,"search_cpl":739.67,"meta_cpl":null},"1st to 10th August":{"blended":45.0,"search":37.0,"meta":8.0,"l2r":0.03076923076923077,"search_l2r":0.05405405405405406,"meta_l2r":0.0,"blended_cpl":781.37,"search_cpl":834.51,"meta_cpl":535.58},"1st to 16th August":{"blended":113.0,"search":72.0,"meta":41.0,"l2r":0.03409090909090909,"search_l2r":0.08333333333333333,"meta_l2r":0.0,"blended_cpl":733.92,"search_cpl":877.84,"meta_cpl":481.18}},"CMA Retail":{"1st to 12th July":{"blended":808.0,"search":486.0,"meta":322.0,"l2r":0.02403846153846154,"search_l2r":0.02880658436213992,"meta_l2r":0.015527950310559006,"blended_cpl":1219.21,"search_cpl":1611.52,"meta_cpl":627.11},"1st to 20th July":{"blended":1182.0,"search":683.0,"meta":499.0,"l2r":0.03462489694971146,"search_l2r":0.04538799414348463,"meta_l2r":0.01603206412825651,"blended_cpl":1316.72,"search_cpl":1672.71,"meta_cpl":829.47},"1st to 31st July":{"blended":1636.0,"search":996.0,"meta":640.0,"l2r":0.0353081986834231,"search_l2r":0.04618473895582329,"meta_l2r":0.015625,"blended_cpl":1339.93,"search_cpl":1621.03,"meta_cpl":902.48},"1st to 4th August":{"blended":607.0,"search":74.0,"meta":533.0,"l2r":0.0012099213551119178,"search_l2r":0.02702702702702703,"meta_l2r":0.0,"blended_cpl":431.47,"search_cpl":1663.41,"meta_cpl":260.43},"1st to 10th August":{"blended":767.0,"search":164.0,"meta":603.0,"l2r":0.016795865633074936,"search_l2r":0.07317073170731707,"meta_l2r":0.001658374792703151,"blended_cpl":577.77,"search_cpl":1720.11,"meta_cpl":267.08},"1st to 16th August":{"blended":1296.0,"search":413.0,"meta":883.0,"l2r":0.0213903743315508,"search_l2r":0.05811138014527845,"meta_l2r":0.004530011325028313,"blended_cpl":749.46,"search_cpl":1773.4,"meta_cpl":270.54}},"DMPRO":{"1st to 12th July":{"blended":2089.0,"search":294.0,"meta":1795.0,"l2r":0.014839636189564385,"search_l2r":0.017006802721088437,"meta_l2r":0.014484679665738161,"blended_cpl":370.23,"search_cpl":147.39,"meta_cpl":406.73},"1st to 20th July":{"blended":3737.0,"search":567.0,"meta":3170.0,"l2r":0.011774150388011774,"search_l2r":0.015873015873015872,"meta_l2r":0.011041009463722398,"blended_cpl":378.44,"search_cpl":123.87,"meta_cpl":423.98},"1st to 31st July":{"blended":4678.0,"search":941.0,"meta":3737.0,"l2r":0.01261222744762719,"search_l2r":0.010626992561105207,"meta_l2r":0.013112122023013113,"blended_cpl":350.38,"search_cpl":74.75,"meta_cpl":419.78},"1st to 16th August":{"blended":2710.0,"search":331.0,"meta":2379.0,"l2r":0.016599040944300997,"search_l2r":0.03625377643504532,"meta_l2r":0.013871374527112233,"blended_cpl":385.01,"search_cpl":43.29,"meta_cpl":432.55}},"PGA PRO":{"1st to 12th July":{"blended":5.0,"search":2.0,"meta":3.0,"l2r":0.0,"search_l2r":0.0,"meta_l2r":0.0,"blended_cpl":117.82,"search_cpl":294.5530609377,"meta_cpl":0.0},"1st to 20th July":{"blended":9.0,"search":4.0,"meta":5.0,"l2r":0.1111111111111111,"search_l2r":0.0,"meta_l2r":0.2,"blended_cpl":135.29,"search_cpl":304.3973825243,"meta_cpl":0.0},"1st to 31st July":{"blended":13.0,"search":6.0,"meta":7.0,"l2r":0.15384615384615385,"search_l2r":0.0,"meta_l2r":0.2857142857142857,"blended_cpl":131.55,"search_cpl":285.030772042,"meta_cpl":0.0},"1st to 4th August":{"blended":0.0,"search":0.0,"meta":0.0,"l2r":0.0,"search_l2r":0.0,"meta_l2r":0.0,"blended_cpl":null,"search_cpl":0.0,"meta_cpl":0.0},"1st to 10th August":{"blended":1.0,"search":1.0,"meta":0.0,"l2r":2.0,"search_l2r":2.0,"meta_l2r":0.0,"blended_cpl":156.22,"search_cpl":156.2239586939,"meta_cpl":0.0},"1st to 16th August":{"blended":3.0,"search":2.0,"meta":1.0,"l2r":0.6666666666666666,"search_l2r":1.0,"meta_l2r":0.0,"blended_cpl":114.37,"search_cpl":171.5526345322,"meta_cpl":0.0}},"PGFAP":{"1st to 12th July":{"blended":61.0,"search":59.0,"meta":2.0,"l2r":0.03278688524590164,"search_l2r":0.01694915254237288,"meta_l2r":0.5,"blended_cpl":593.08,"search_cpl":579.33,"meta_cpl":998.97},"1st to 20th July":{"blended":87.0,"search":85.0,"meta":2.0,"l2r":0.02247191011235955,"search_l2r":0.011764705882352941,"meta_l2r":0.5,"blended_cpl":487.95,"search_cpl":474.47,"meta_cpl":1060.63},"1st to 31st July":{"blended":130.0,"search":128.0,"meta":2.0,"l2r":0.014925373134328358,"search_l2r":0.0078125,"meta_l2r":0.5,"blended_cpl":381.86,"search_cpl":377.54,"meta_cpl":658.47},"1st to 10th August":{"blended":50.0,"search":49.0,"meta":1.0,"l2r":0.02,"search_l2r":0.02040816326530612,"meta_l2r":0.0,"blended_cpl":353.71,"search_cpl":360.93,"meta_cpl":0.0},"1st to 16th August":{"blended":80.0,"search":78.0,"meta":2.0,"l2r":0.011904761904761904,"search_l2r":0.01282051282051282,"meta_l2r":0.0,"blended_cpl":303.61,"search_cpl":301.91,"meta_cpl":369.64}},"CFOP":{"1st to 12th July":{"blended":531.0,"search":102.0,"meta":429.0,"l2r":0.0,"search_l2r":0.0,"meta_l2r":0.0,"blended_cpl":151.81,"search_cpl":701.54,"meta_cpl":21.11},"1st to 20th July":{"blended":755.0,"search":206.0,"meta":549.0,"l2r":0.0,"search_l2r":0.0,"meta_l2r":0.0,"blended_cpl":237.06,"search_cpl":817.33,"meta_cpl":19.33},"1st to 31st July":{"blended":1275.0,"search":352.0,"meta":923.0,"l2r":0.00231839258114374,"search_l2r":0.0,"meta_l2r":0.0021668472372697724,"blended_cpl":812.98,"search_cpl":913.49,"meta_cpl":774.65},"1st to 4th August":{"blended":306.0,"search":56.0,"meta":250.0,"l2r":0.0,"search_l2r":0.0,"meta_l2r":0.0,"blended_cpl":678.96,"search_cpl":893.04,"meta_cpl":631.01},"1st to 10th August":{"blended":632.0,"search":114.0,"meta":518.0,"l2r":0.0,"search_l2r":0.0,"meta_l2r":0.0,"blended_cpl":741.52,"search_cpl":1023.82,"meta_cpl":679.39},"1st to 16th August":{"blended":806.0,"search":167.0,"meta":639.0,"l2r":0.0012315270935960591,"search_l2r":0.005988023952095809,"meta_l2r":0.0,"blended_cpl":803.67,"search_cpl":1292.97,"meta_cpl":675.79}},"CMA":{"1st to 12th July":{"blended":885.0,"search":347.0,"meta":538.0,"l2r":0.031,"search_l2r":0.07,"meta_l2r":0.01,"blended_cpl":835.1,"search_cpl":1628.73,"meta_cpl":323.23},"1st to 20th July":{"blended":1680.0,"search":747.0,"meta":933.0,"l2r":0.02692713833157339,"search_l2r":0.05,"meta_l2r":0.02,"blended_cpl":937.29,"search_cpl":1695.61,"meta_cpl":330.15},"1st to 31st July":{"blended":2487.0,"search":1187.0,"meta":1300.0,"l2r":0.03272204243078029,"search_l2r":0.05,"meta_l2r":0.02,"blended_cpl":937.12,"search_cpl":1610.26,"meta_cpl":322.5},"1st to 4th August":{"blended":1025.0,"search":151.0,"meta":874.0,"l2r":0.00862895493767977,"search_l2r":0.03,"meta_l2r":0.0,"blended_cpl":473.44,"search_cpl":1692.83,"meta_cpl":262.76},"1st to 10th August":{"blended":1704.0,"search":380.0,"meta":1324.0,"l2r":0.01011804384485666,"search_l2r":0.03,"meta_l2r":0.0,"blended_cpl":595.75,"search_cpl":1730.11,"meta_cpl":270.17},"1st to 16th August":{"blended":2358.0,"search":609.0,"meta":1749.0,"l2r":0.012190166598943519,"search_l2r":0.02,"meta_l2r":0.01,"blended_cpl":656.12,"search_cpl":1757.42,"meta_cpl":272.65}},"CFA":{"1st to 12th July":{"blended":699.0,"search":466.0,"meta":233.0,"l2r":0.022636484687083888,"search_l2r":0.03,"meta_l2r":0.02,"blended_cpl":526.61,"search_cpl":628.7,"meta_cpl":322.44},"1st to 20th July":{"blended":1404.0,"search":725.0,"meta":679.0,"l2r":0.022972972972972974,"search_l2r":0.04,"meta_l2r":0.01,"blended_cpl":477.28,"search_cpl":648.29,"meta_cpl":294.68},"1st to 31st July":{"blended":1927.0,"search":1028.0,"meta":899.0,"l2r":0.03325301204819277,"search_l2r":0.05,"meta_l2r":0.01,"blended_cpl":495.34,"search_cpl":616.67,"meta_cpl":356.61},"1st to 4th August":{"blended":263.0,"search":121.0,"meta":142.0,"l2r":0.007407407407407408,"search_l2r":0.01,"meta_l2r":0.01,"blended_cpl":723.43,"search_cpl":722.74,"meta_cpl":724.02},"1st to 10th August":{"blended":783.0,"search":330.0,"meta":453.0,"l2r":0.004975124378109453,"search_l2r":0.01,"meta_l2r":0.0,"blended_cpl":648.38,"search_cpl":803.24,"meta_cpl":535.58},"1st to 16th August":{"blended":1588.0,"search":594.0,"meta":994.0,"l2r":0.01059446733372572,"search_l2r":0.02,"meta_l2r":0.0,"blended_cpl":613.24,"search_cpl":831.14,"meta_cpl":483.03}},"ACCA":{"1st to 12th July":{"blended":1393.0,"search":520.0,"meta":873.0,"l2r":0.012101910828025478,"search_l2r":0.02,"meta_l2r":0.01,"blended_cpl":679.65,"search_cpl":1496.45,"meta_cpl":193.13},"1st to 20th July":{"blended":2009.0,"search":876.0,"meta":1133.0,"l2r":0.018650088809946713,"search_l2r":0.03,"meta_l2r":0.01,"blended_cpl":795.84,"search_cpl":1537.72,"meta_cpl":222.24},"1st to 31st July":{"blended":2884.0,"search":1274.0,"meta":1610.0,"l2r":0.024506873879258817,"search_l2r":0.05,"meta_l2r":0.01,"blended_cpl":812.25,"search_cpl":1530.46,"meta_cpl":243.92},"1st to 4th August":{"blended":589.0,"search":104.0,"meta":485.0,"l2r":0.0,"search_l2r":0.0,"meta_l2r":0.0,"blended_cpl":454.87,"search_cpl":1402.27,"meta_cpl":251.72},"1st to 10th August":{"blended":1155.0,"search":362.0,"meta":793.0,"l2r":0.0020604395604395605,"search_l2r":0.01,"meta_l2r":0.0,"blended_cpl":614.89,"search_cpl":1440.7,"meta_cpl":237.91},"1st to 16th August":{"blended":1719.0,"search":713.0,"meta":1006.0,"l2r":0.0072562358276643995,"search_l2r":0.02,"meta_l2r":0.0,"blended_cpl":750.23,"search_cpl":1480.96,"meta_cpl":232.33}},"CPA":{"1st to 12th July":{"blended":465.0,"search":288.0,"meta":177.0,"l2r":0.012131715771230503,"search_l2r":0.02,"meta_l2r":0.01,"blended_cpl":928.46,"search_cpl":1334.98,"meta_cpl":267.0},"1st to 20th July":{"blended":876.0,"search":470.0,"meta":406.0,"l2r":0.013118062563067608,"search_l2r":0.03,"meta_l2r":0.0,"blended_cpl":1003.91,"search_cpl":1436.24,"meta_cpl":503.43},"1st to 31st July":{"blended":1122.0,"search":614.0,"meta":508.0,"l2r":0.020700636942675158,"search_l2r":0.04,"meta_l2r":0.0,"blended_cpl":1000.4,"search_cpl":1379.98,"meta_cpl":541.62},"1st to 4th August":{"blended":294.0,"search":76.0,"meta":218.0,"l2r":0.0,"search_l2r":0.0,"meta_l2r":0.0,"blended_cpl":691.03,"search_cpl":1175.24,"meta_cpl":522.22},"1st to 10th August":{"blended":391.0,"search":175.0,"meta":216.0,"l2r":0.007537688442211055,"search_l2r":0.02,"meta_l2r":0.0,"blended_cpl":932.07,"search_cpl":1431.96,"meta_cpl":527.06},"1st to 16th August":{"blended":576.0,"search":339.0,"meta":237.0,"l2r":0.01340033500837521,"search_l2r":0.02,"meta_l2r":0.0,"blended_cpl":1047.18,"search_cpl":1424.83,"meta_cpl":507.0}},"FRM":{"1st to 12th July":{"blended":535.0,"search":361.0,"meta":174.0,"l2r":0.024734982332155476,"search_l2r":0.03,"meta_l2r":0.0,"blended_cpl":793.57,"search_cpl":959.33,"meta_cpl":449.67},"1st to 20th July":{"blended":991.0,"search":636.0,"meta":355.0,"l2r":0.029296875,"search_l2r":0.04,"meta_l2r":0.01,"blended_cpl":939.87,"search_cpl":1143.36,"meta_cpl":575.31},"1st to 31st July":{"blended":1254.0,"search":801.0,"meta":453.0,"l2r":0.040832049306625574,"search_l2r":0.05,"meta_l2r":0.01,"blended_cpl":921.66,"search_cpl":1128.88,"meta_cpl":555.26},"1st to 4th August":{"blended":184.0,"search":138.0,"meta":46.0,"l2r":0.005319148936170213,"search_l2r":0.0,"meta_l2r":0.02,"blended_cpl":678.45,"search_cpl":675.31,"meta_cpl":687.87},"1st to 10th August":{"blended":864.0,"search":399.0,"meta":465.0,"l2r":0.002290950744558992,"search_l2r":0.0,"meta_l2r":0.0,"blended_cpl":394.83,"search_cpl":651.22,"meta_cpl":174.82},"1st to 16th August":{"blended":1734.0,"search":736.0,"meta":998.0,"l2r":0.006822057987492893,"search_l2r":0.01,"meta_l2r":0.0,"blended_cpl":363.12,"search_cpl":659.64,"meta_cpl":144.44}},"FMVA":{"1st to 12th July":{"blended":90.0,"search":45.0,"meta":45.0,"l2r":0.04395604395604396,"search_l2r":0.07,"meta_l2r":0.02,"blended_cpl":0.0,"search_cpl":0.0,"meta_cpl":0.0},"1st to 20th July":{"blended":211.0,"search":82.0,"meta":129.0,"l2r":0.03286384976525822,"search_l2r":0.07,"meta_l2r":0.01,"blended_cpl":193.16,"search_cpl":0.0,"meta_cpl":315.94},"1st to 31st July":{"blended":277.0,"search":123.0,"meta":154.0,"l2r":0.08243727598566308,"search_l2r":0.16,"meta_l2r":0.02,"blended_cpl":350.49,"search_cpl":370.06,"meta_cpl":334.87},"1st to 4th August":{"blended":18.0,"search":18.0,"meta":0.0,"l2r":0.0,"search_l2r":0.0,"meta_l2r":null,"blended_cpl":281.59,"search_cpl":281.59,"meta_cpl":null},"1st to 10th August":{"blended":30.0,"search":30.0,"meta":0.0,"l2r":0.03333333333333333,"search_l2r":0.03,"meta_l2r":null,"blended_cpl":322.06,"search_cpl":322.06,"meta_cpl":null},"1st to 16th August":{"blended":54.0,"search":52.0,"meta":2.0,"l2r":0.07407407407407407,"search_l2r":0.06,"meta_l2r":0.5,"blended_cpl":291.73,"search_cpl":302.95,"meta_cpl":0.0}},"KPMG FAP":{"1st to 12th July":{"blended":914.0,"search":161.0,"meta":753.0,"l2r":0.016411378555798686,"search_l2r":0.043478260869565216,"meta_l2r":0.010624169986719787,"blended_cpl":221.18,"search_cpl":860.1522414325,"meta_cpl":84.5661903646},"1st to 20th July":{"blended":1394.0,"search":253.0,"meta":1141.0,"l2r":0.022206303724928367,"search_l2r":0.05928853754940711,"meta_l2r":0.013146362839614373,"blended_cpl":245.64,"search_cpl":916.8984676142,"meta_cpl":96.8016858864},"1st to 31st July":{"blended":2323.0,"search":403.0,"meta":1920.0,"l2r":0.0193631669535284,"search_l2r":0.05707196029776675,"meta_l2r":0.011458333333333333,"blended_cpl":247.05,"search_cpl":934.1003271544,"meta_cpl":102.8414802463},"1st to 4th August":{"blended":298.0,"search":44.0,"meta":254.0,"l2r":0.010067114093959731,"search_l2r":0.045454545454545456,"meta_l2r":0.003937007874015748,"blended_cpl":295.21,"search_cpl":1226.6825765869,"meta_cpl":133.8516572549},"1st to 10th August":{"blended":582.0,"search":147.0,"meta":435.0,"l2r":0.010309278350515464,"search_l2r":0.027210884353741496,"meta_l2r":0.004597701149425287,"blended_cpl":358.21,"search_cpl":972.5822114036,"meta_cpl":150.5912245455},"1st to 16th August":{"blended":1231.0,"search":313.0,"meta":918.0,"l2r":0.005681818181818182,"search_l2r":0.01597444089456869,"meta_l2r":0.002178649237472767,"blended_cpl":345.36,"search_cpl":960.5036851587,"meta_cpl":135.6213885529}},"KPMG PM":{"1st to 12th July":{"blended":699.0,"search":105.0,"meta":594.0,"l2r":0.018335684062059238,"search_l2r":0.02857142857142857,"meta_l2r":0.015151515151515152,"blended_cpl":353.32,"search_cpl":1192.8002020451,"meta_cpl":204.9228242775},"1st to 20th July":{"blended":1057.0,"search":174.0,"meta":883.0,"l2r":0.016697588126159554,"search_l2r":0.040229885057471264,"meta_l2r":0.011325028312570781,"blended_cpl":387.48,"search_cpl":1210.7792978808,"meta_cpl":225.2416288557},"1st to 31st July":{"blended":1754.0,"search":228.0,"meta":1526.0,"l2r":0.015151515151515152,"search_l2r":0.043859649122807015,"meta_l2r":0.010484927916120577,"blended_cpl":335.52,"search_cpl":1289.9378156401,"meta_cpl":192.9193156068},"1st to 4th August":{"blended":323.0,"search":17.0,"meta":306.0,"l2r":0.0,"search_l2r":0.0,"meta_l2r":0.0,"blended_cpl":230.54,"search_cpl":1932.6050837977,"meta_cpl":135.98262263},"1st to 10th August":{"blended":515.0,"search":46.0,"meta":469.0,"l2r":0.0019230769230769232,"search_l2r":0.021739130434782608,"meta_l2r":0.0,"blended_cpl":268.56,"search_cpl":1492.9181475879,"meta_cpl":148.4732383065},"1st to 16th August":{"blended":881.0,"search":86.0,"meta":795.0,"l2r":0.008968609865470852,"search_l2r":0.03488372093023256,"meta_l2r":0.006289308176100629,"blended_cpl":362.23,"search_cpl":1774.444384962,"meta_cpl":209.4667302384}},"IIM C EPIBCM":{"1st to 12th July":{"blended":5.0,"search":5.0,"meta":0.0,"l2r":0.4,"search_l2r":0.2,"meta_l2r":0.0,"blended_cpl":68.45,"search_cpl":68.4485208274,"meta_cpl":0.0},"1st to 20th July":{"blended":11.0,"search":11.0,"meta":0.0,"l2r":0.36363636363636365,"search_l2r":0.09090909090909091,"meta_l2r":0.0,"blended_cpl":129.34,"search_cpl":129.3388087801,"meta_cpl":0.0},"1st to 31st July":{"blended":24.0,"search":24.0,"meta":0.0,"l2r":0.25,"search_l2r":0.16666666666666666,"meta_l2r":0.0,"blended_cpl":207.79,"search_cpl":207.785037602,"meta_cpl":0.0},"1st to 16th August":{"blended":12.0,"search":12.0,"meta":0.0,"l2r":0.07692307692307693,"search_l2r":0.08333333333333333,"meta_l2r":0.0,"blended_cpl":92.9,"search_cpl":92.896090636,"meta_cpl":0.0}},"IIM C EPPEVC":{"1st to 12th July":{"blended":62.0,"search":27.0,"meta":35.0,"l2r":0.0,"search_l2r":0.0,"meta_l2r":0.0,"blended_cpl":2022.99,"search_cpl":3059.56595,"meta_cpl":1223.3425512195},"1st to 20th July":{"blended":82.0,"search":47.0,"meta":35.0,"l2r":0.012195121951219513,"search_l2r":0.02127659574468085,"meta_l2r":0.0,"blended_cpl":2110.27,"search_cpl":2792.4296936146,"meta_cpl":1194.215347619},"1st to 31st July":{"blended":141.0,"search":98.0,"meta":43.0,"l2r":0.02127659574468085,"search_l2r":0.030612244897959183,"meta_l2r":0.0,"blended_cpl":1933.18,"search_cpl":2281.2374603363,"meta_cpl":1139.9328318182}},"PWC Gen AI":{"1st to 12th July":{"blended":331.0,"search":68.0,"meta":263.0,"l2r":0.018072289156626505,"search_l2r":0.029411764705882353,"meta_l2r":0.015209125475285171,"blended_cpl":283.29,"search_cpl":550.4031039844,"meta_cpl":214.2291781132},"1st to 20th July":{"blended":571.0,"search":109.0,"meta":462.0,"l2r":0.017482517482517484,"search_l2r":0.03669724770642202,"meta_l2r":0.012987012987012988,"blended_cpl":335.87,"search_cpl":569.4098167559,"meta_cpl":280.766115794},"1st to 31st July":{"blended":1265.0,"search":179.0,"meta":1086.0,"l2r":0.013417521704814523,"search_l2r":0.027932960893854747,"meta_l2r":0.011049723756906077,"blended_cpl":302.01,"search_cpl":583.8304473645,"meta_cpl":255.5628060336},"1st to 4th August":{"blended":261.0,"search":25.0,"meta":236.0,"l2r":0.0038314176245210726,"search_l2r":0.04,"meta_l2r":0.0,"blended_cpl":281.83,"search_cpl":593.9302050682,"meta_cpl":248.7671203252},"1st to 10th August":{"blended":514.0,"search":59.0,"meta":455.0,"l2r":0.0038910505836575876,"search_l2r":0.01694915254237288,"meta_l2r":0.002197802197802198,"blended_cpl":316.96,"search_cpl":582.7839450714,"meta_cpl":282.4857066667},"1st to 16th August":{"blended":884.0,"search":97.0,"meta":787.0,"l2r":0.004524886877828055,"search_l2r":0.020618556701030927,"meta_l2r":0.0025412960609911056,"blended_cpl":340.6,"search_cpl":577.8964593981,"meta_cpl":311.3471832274}},"ISB CFO":{"1st to 12th July":{"blended":110.0,"search":65.0,"meta":45.0,"l2r":0.02586206896551724,"search_l2r":0.015384615384615385,"meta_l2r":0.044444444444444446,"blended_cpl":3086.62,"search_cpl":3419.1689426358,"meta_cpl":2606.2717843137},"1st to 20th July":{"blended":235.0,"search":114.0,"meta":121.0,"l2r":0.024691358024691357,"search_l2r":0.017543859649122806,"meta_l2r":0.03305785123966942,"blended_cpl":2554.15,"search_cpl":3081.6735877863,"meta_cpl":2057.142961194},"1st to 31st July":{"blended":544.0,"search":215.0,"meta":329.0,"l2r":0.007142857142857143,"search_l2r":0.03255813953488372,"meta_l2r":0.0121580547112462,"blended_cpl":2081.84,"search_cpl":2867.6580170143,"meta_cpl":1568.3036694864},"1st to 4th August":{"blended":91.0,"search":34.0,"meta":57.0,"l2r":0.0,"search_l2r":0.029411764705882353,"meta_l2r":0.0,"blended_cpl":1520.44,"search_cpl":2064.05364,"meta_cpl":1196.1852526316},"1st to 10th August":{"blended":198.0,"search":62.0,"meta":136.0,"l2r":0.004975124378109453,"search_l2r":0.016129032258064516,"meta_l2r":0.0,"blended_cpl":1501.45,"search_cpl":2412.8992383562,"meta_cpl":1085.9363},"1st to 16th August":{"blended":374.0,"search":97.0,"meta":277.0,"l2r":0.015915119363395226,"search_l2r":0.05154639175257732,"meta_l2r":0.0036101083032490976,"blended_cpl":1511.16,"search_cpl":3032.939722614,"meta_cpl":978.264228777}},"AIPM IBM":{"1st to 12th July":{"blended":509.0,"search":38.0,"meta":471.0,"l2r":0.005893909626719057,"search_l2r":0.02631578947368421,"meta_l2r":0.004246284501061571,"blended_cpl":314.11,"search_cpl":921.9758936005,"meta_cpl":265.0713041985},"1st to 20th July":{"blended":729.0,"search":55.0,"meta":674.0,"l2r":0.00823045267489712,"search_l2r":0.03636363636363636,"meta_l2r":0.005934718100890208,"blended_cpl":389.09,"search_cpl":1106.8787089644,"meta_cpl":330.514818707},"1st to 31st July":{"blended":1208.0,"search":100.0,"meta":1108.0,"l2r":0.009105960264900662,"search_l2r":0.04,"meta_l2r":0.00631768953068592,"blended_cpl":428.55,"search_cpl":1048.380381695,"meta_cpl":372.6048868533},"1st to 4th August":{"blended":96.0,"search":12.0,"meta":84.0,"l2r":0.0,"search_l2r":0.0,"meta_l2r":0.0,"blended_cpl":585.31,"search_cpl":822.3211230769,"meta_cpl":551.4553},"1st to 10th August":{"blended":243.0,"search":22.0,"meta":221.0,"l2r":0.012345679012345678,"search_l2r":0.045454545454545456,"meta_l2r":0.00904977375565611,"blended_cpl":468.02,"search_cpl":955.3746436041,"meta_cpl":419.5045947368},"1st to 16th August":{"blended":501.0,"search":46.0,"meta":455.0,"l2r":0.00998003992015968,"search_l2r":0.021739130434782608,"meta_l2r":0.008791208791208791,"blended_cpl":488.92,"search_cpl":1303.7337471749,"meta_cpl":406.5425331887}},"IIML - EPSDMAI":{"1st to 12th July":{"blended":269.0,"search":48.0,"meta":221.0,"l2r":0.007434944237918215,"search_l2r":0.020833333333333332,"meta_l2r":0.004524886877828055,"blended_cpl":472.64,"search_cpl":704.2228431373,"meta_cpl":422.3395257384},"1st to 20th July":{"blended":362.0,"search":71.0,"meta":291.0,"l2r":0.013812154696132596,"search_l2r":0.04225352112676056,"meta_l2r":0.006872852233676976,"blended_cpl":570.6,"search_cpl":738.1058368421,"meta_cpl":529.7251035599},"1st to 31st July":{"blended":467.0,"search":108.0,"meta":359.0,"l2r":0.006423982869379015,"search_l2r":0.027777777777777776,"meta_l2r":0.0,"blended_cpl":752.97,"search_cpl":938.9989155173,"meta_cpl":697.0026275482},"1st to 16th August":{"blended":184.0,"search":47.0,"meta":137.0,"l2r":0.015789473684210527,"search_l2r":0.0425531914893617,"meta_l2r":0.0072992700729927005,"blended_cpl":1790.65,"search_cpl":2493.0987748828,"meta_cpl":1549.6627007092}},"IIM L EP AIB":{"1st to 12th July":{"blended":178.0,"search":88.0,"meta":90.0,"l2r":0.028089887640449437,"search_l2r":0.056818181818181816,"meta_l2r":0.0,"blended_cpl":1030.1,"search_cpl":832.0312700234,"meta_cpl":1223.7627490566},"1st to 20th July":{"blended":286.0,"search":156.0,"meta":130.0,"l2r":0.024475524475524476,"search_l2r":0.04487179487179487,"meta_l2r":0.0,"blended_cpl":1125.66,"search_cpl":913.6422256983,"meta_cpl":1380.0847333333},"1st to 31st July":{"blended":446.0,"search":284.0,"meta":162.0,"l2r":0.004484304932735426,"search_l2r":0.007042253521126761,"meta_l2r":0.0,"blended_cpl":1168.21,"search_cpl":959.166410492,"meta_cpl":1534.6681116564}},"IIM L GSLP CHRO":{"1st to 12th July":{"blended":164.0,"search":12.0,"meta":152.0,"l2r":0.011627906976744186,"search_l2r":0.0,"meta_l2r":0.013157894736842105,"blended_cpl":973.88,"search_cpl":2611.3282,"meta_cpl":844.6068921053},"1st to 20th July":{"blended":245.0,"search":18.0,"meta":227.0,"l2r":0.00784313725490196,"search_l2r":0.0,"meta_l2r":0.00881057268722467,"blended_cpl":1007.91,"search_cpl":2624.40142,"meta_cpl":879.7297473684},"1st to 31st July":{"blended":376.0,"search":29.0,"meta":347.0,"l2r":0.0,"search_l2r":0.0,"meta_l2r":0.0,"blended_cpl":1048.44,"search_cpl":2702.37279391,"meta_cpl":910.2143008596}},"IIM L GSLP COO":{"1st to 12th July":{"blended":53.0,"search":20.0,"meta":33.0,"l2r":0.031746031746031744,"search_l2r":0.0,"meta_l2r":0.030303030303030304,"blended_cpl":1639.6,"search_cpl":1360.4467238095,"meta_cpl":1808.7907647059},"1st to 20th July":{"blended":115.0,"search":27.0,"meta":88.0,"l2r":0.031007751937984496,"search_l2r":0.0,"meta_l2r":0.03409090909090909,"blended_cpl":1531.67,"search_cpl":1633.48285,"meta_cpl":1500.4369550562},"1st to 31st July":{"blended":226.0,"search":42.0,"meta":184.0,"l2r":0.012,"search_l2r":0.0,"meta_l2r":0.010869565217391304,"blended_cpl":1471.81,"search_cpl":1629.7553909091,"meta_cpl":1435.7535806452},"1st to 10th August":{"blended":98.0,"search":9.0,"meta":89.0,"l2r":0.009259259259259259,"search_l2r":0.0,"meta_l2r":0.011235955056179775,"blended_cpl":1613.65,"search_cpl":4989.2183111111,"meta_cpl":1272.3037101124},"1st to 16th August":{"blended":184.0,"search":23.0,"meta":161.0,"l2r":0.0045045045045045045,"search_l2r":0.0,"meta_l2r":0.006211180124223602,"blended_cpl":1616.1,"search_cpl":4100.3738017631,"meta_cpl":1261.1993180124}},"PG Digital Marketing":{"1st to 20th July":{"blended":35.0,"search":28.0,"meta":7.0,"l2r":0.02857142857142857,"search_l2r":0.03571428571428571,"meta_l2r":0.0,"blended_cpl":118.86,"search_cpl":104.38,"meta_cpl":176.77},"1st to 31st July":{"blended":59.0,"search":49.0,"meta":10.0,"l2r":0.0,"search_l2r":0.0,"meta_l2r":0.0,"blended_cpl":170.27,"search_cpl":174.01,"meta_cpl":151.95},"1st to 16th August":{"blended":12.0,"search":12.0,"meta":0.0,"l2r":0.0,"search_l2r":0.0,"meta_l2r":0.0,"blended_cpl":311.59,"search_cpl":311.59,"meta_cpl":null}},"IIM L EMP SML":{"1st to 20th July":{"blended":168.0,"search":47.0,"meta":121.0,"l2r":0.017857142857142856,"search_l2r":0.02127659574468085,"meta_l2r":0.01652892561983471,"blended_cpl":1459.44,"search_cpl":2559.2562320388,"meta_cpl":1032.2347681818},"1st to 31st July":{"blended":248.0,"search":71.0,"meta":177.0,"l2r":0.012096774193548387,"search_l2r":0.014084507042253521,"meta_l2r":0.011299435028248588,"blended_cpl":1754.64,"search_cpl":2883.0921469525,"meta_cpl":1301.9872666667},"1st to 10th August":{"blended":69.0,"search":25.0,"meta":44.0,"l2r":0.028985507246376812,"search_l2r":0.08,"meta_l2r":0.0,"blended_cpl":2047.42,"search_cpl":2407.843808,"meta_cpl":1842.6335590909},"1st to 16th August":{"blended":172.0,"search":60.0,"meta":112.0,"l2r":0.023121387283236993,"search_l2r":0.05,"meta_l2r":0.008928571428571428,"blended_cpl":1921.47,"search_cpl":2572.6617633333,"meta_cpl":1572.6122339286}},"IIM L GSLP CFO":{"1st to 20th July":{"blended":191.0,"search":56.0,"meta":135.0,"l2r":0.0051813471502590676,"search_l2r":0.0,"meta_l2r":0.007407407407407408,"blended_cpl":1506.74,"search_cpl":1803.1805464286,"meta_cpl":1383.7690808824},"1st to 31st July":{"blended":290.0,"search":85.0,"meta":205.0,"l2r":0.003401360544217687,"search_l2r":0.023529411764705882,"meta_l2r":0.004878048780487805,"blended_cpl":1596.52,"search_cpl":1889.2989536187,"meta_cpl":1475.1266647343},"1st to 10th August":{"blended":67.0,"search":19.0,"meta":48.0,"l2r":0.0,"search_l2r":0.0,"meta_l2r":0.0,"blended_cpl":1809.18,"search_cpl":2646.9057392894,"meta_cpl":1477.5803469388},"1st to 16th August":{"blended":116.0,"search":26.0,"meta":90.0,"l2r":0.0,"search_l2r":0.0,"meta_l2r":0.0,"blended_cpl":1913.33,"search_cpl":3294.421624451,"meta_cpl":1514.3533847826}},"IIM L GSLP":{"1st to 4th August":{"blended":2.0,"search":2.0,"meta":0.0,"l2r":0.3333333333333333,"search_l2r":0.0,"meta_l2r":0.0,"blended_cpl":462.61,"search_cpl":462.6147561404,"meta_cpl":0.0},"1st to 10th August":{"blended":2.0,"search":2.0,"meta":0.0,"l2r":0.16666666666666666,"search_l2r":0.0,"meta_l2r":0.0,"blended_cpl":523.35,"search_cpl":523.3502616246,"meta_cpl":0.0},"1st to 16th August":{"blended":4.0,"search":4.0,"meta":0.0,"l2r":0.16666666666666666,"search_l2r":0.0,"meta_l2r":0.0,"blended_cpl":427.32,"search_cpl":427.3220169256,"meta_cpl":0.0}}}};
+Chart.register(window.ChartDataLabels);
+Chart.defaults.font.family="'Poppins',sans-serif";
+Chart.defaults.color="#c3d0ec";
+const PERIODS=DATA.periods, SHORT=DATA.short;
+const COLORS=["#3d7bff","#00c2ad","#f6a723","#ff5c8a","#8f6bff","#37c26a"];
+const TARGETS={"CIBOP":{"jul":{"enroll":526,"rev":68000000.0},"aug":{"enroll":502,"rev":65000000.0}},"PG Analytics":{"jul":{"enroll":211,"rev":29000000.0},"aug":{"enroll":204,"rev":28000000.0}},"PGBAF":{"jul":{"enroll":99,"rev":5000000.0},"aug":{"enroll":92,"rev":4700000.0}},"PGFAP":{"jul":{"enroll":22,"rev":3300000.0},"aug":{"enroll":20,"rev":3000000.0}},"CFOP":{"jul":{"enroll":99,"rev":6900000.0},"aug":{"enroll":97,"rev":6700000.0}},"ACCA":{"jul":{"enroll":223,"rev":27000000.0},"aug":{"enroll":214,"rev":26000000.0}},"CMA":{"jul":{"enroll":237,"rev":19000000.0},"aug":{"enroll":236,"rev":19000000.0}},"CFA":{"jul":{"enroll":232,"rev":12000000.0},"aug":{"enroll":228,"rev":12000000.0}},"CPA":{"jul":{"enroll":30,"rev":2100000.0},"aug":{"enroll":30,"rev":2100000.0}},"FRM":{"jul":{"enroll":40,"rev":3000000.0},"aug":{"enroll":40,"rev":3000000.0}},"FMVA":{"jul":{"enroll":25,"rev":750000.0},"aug":{"enroll":25,"rev":750000.0}},"KPMG FAP":{"jul":{"enroll":40,"rev":2400000.0},"aug":{"enroll":40,"rev":2400000.0}},"KPMG PM":{"jul":{"enroll":65,"rev":3900000.0},"aug":{"enroll":65,"rev":3900000.0}},"PWC Gen AI":{"jul":{"enroll":30,"rev":1800000.0},"aug":{"enroll":30,"rev":1800000.0}},"AIPM IBM":{"jul":{"enroll":30,"rev":2500000.0},"aug":{"enroll":30,"rev":2500000.0}},"PGA PRO":{"jul":{"enroll":25,"rev":1500000.0},"aug":{"enroll":25,"rev":1500000.0}},"ISB CFO":{"jul":{"enroll":12,"rev":5400000.0},"aug":{"enroll":12,"rev":5400000.0}},"IIM L EP AIB":{"jul":{"enroll":6,"rev":1500000.0},"aug":{"enroll":8,"rev":2000000.0}},"IIM L EMP SML":{"jul":{"enroll":6,"rev":1700000.0},"aug":{"enroll":8,"rev":2300000.0}},"IIM L GSLP CFO":{"jul":{"enroll":5,"rev":1600000.0},"aug":{"enroll":4,"rev":1300000.0}},"IIM L GSLP COO":{"jul":{"enroll":7,"rev":2200000.0},"aug":{"enroll":4,"rev":1300000.0}},"IIM L GSLP CHRO":{"jul":{"enroll":5,"rev":1600000.0},"aug":{"enroll":4,"rev":1300000.0}},"IIML - EPSDMAI":{"jul":{"enroll":8,"rev":1500000.0},"aug":{"enroll":8,"rev":1500000.0}}};
+const TGT_JUL_COLOR="#C68E4E";const TGT_AUG_COLOR="#0E7C7B";
+const OFFWHITE="#F5F1E8";
+function inr(v){if(v==null)return"";if(v>=1e7)return"\u20B9"+(v/1e7).toFixed(2)+" Cr";if(v>=1e5)return"\u20B9"+(v/1e5).toFixed(2)+" L";return"\u20B9"+Math.round(v).toLocaleString('en-IN');}
+function pct(v){return v==null?"":(v*100).toFixed(2)+"%";}
+function num(v){return v==null?"":Math.round(v).toLocaleString('en-IN');}
+const TT={backgroundColor:'rgba(12,18,40,.96)',borderColor:'rgba(130,160,220,.4)',borderWidth:1,titleFont:{size:14,weight:'600'},bodyFont:{size:13},padding:12,cornerRadius:10};
+const separators={id:'separators',afterDraw:function(chart){var ctx=chart.ctx,ya=chart.scales.y,xa=chart.scales.x;if(!ya)return;var n=chart.data.labels.length;if(n<2)return;ctx.save();ctx.strokeStyle='rgba(180,200,240,.28)';ctx.lineWidth=1;ctx.setLineDash([5,4]);for(var i=0;i<n-1;i++){var y=ya.getPixelForValue(i+0.5);ctx.beginPath();ctx.moveTo(xa.left,y);ctx.lineTo(xa.right,y);ctx.stroke();}ctx.restore();}};
+function matrix(programs,getter){return programs.map(p=>PERIODS.map(per=>{const v=getter(p,per);return(v===undefined?null:v);}));}
+function datasets(mat){return PERIODS.map((per,i)=>({label:SHORT[i],data:mat.map(r=>r[i]),backgroundColor:COLORS[i],hoverBackgroundColor:COLORS[i],borderRadius:8,borderSkipped:false,hoverBorderColor:'#ffffff',hoverBorderWidth:2,maxBarThickness:30,categoryPercentage:0.72,barPercentage:0.96}));}
+function labelSet(fmt,thr){
+  const outsideVal={anchor:'end',align:'end',offset:6,clamp:true,font:{size:12,weight:'700'},color:ctx=>ctx.dataset.backgroundColor,formatter:(v,ctx)=>{if(v==null)return"";return SHORT[ctx.datasetIndex]+", "+fmt(v);}};
+  return {valueOutside:outsideVal};
+}
+const targetWord={id:'targetWord',afterDatasetsDraw:function(chart){
+  var ctx=chart.ctx;
+  chart.data.datasets.forEach(function(ds,di){
+    if(!ds._isTarget)return;
+    var meta=chart.getDatasetMeta(di);
+    ctx.save();ctx.font="700 12px 'Poppins',sans-serif";ctx.fillStyle="#ffffff";ctx.textAlign="center";ctx.textBaseline="middle";
+    meta.data.forEach(function(bar){
+      var x0=chart.scales.x.getPixelForValue(0);var xMid=(x0+bar.x)/2;var w=bar.x-x0;
+      if(w>ctx.measureText("Target").width+16){ctx.fillText("Target",xMid,bar.y);}
+    });
+    ctx.restore();
+  });
+}};
+const charts={};
+function makeChart(id,programs,mat,opts){
+  const canvas=document.getElementById(id),wrap=canvas.parentElement;
+  wrap.style.height=Math.max(340,programs.length*140+100)+"px";
+  if(charts[id])charts[id].destroy();
+  charts[id]=new Chart(canvas,{type:'bar',data:{labels:programs,datasets:datasets(mat)},plugins:[separators],
+    options:{indexAxis:'y',responsive:true,maintainAspectRatio:false,interaction:{mode:'nearest',intersect:true},animation:{duration:650,easing:'easeOutQuart'},layout:{padding:{right:120}},
+      plugins:{legend:{display:false},
+        tooltip:Object.assign({},TT,{callbacks:{title:i=>i[0].label,label:c=>c.dataset.label+": "+opts.fmt(c.parsed.x)}}),
+        datalabels:{labels:labelSet(opts.fmt,opts.thr)}},
+      scales:{x:{ticks:{color:'#8ea0c4',stepSize:opts.stepSize,callback:opts.axisFmt||undefined},title:{display:true,text:opts.axisTitle,color:'#8ea0c4'},grid:{color:'rgba(130,160,220,.12)'}},
+              y:{grid:{display:false},ticks:{font:{size:14,weight:'600'},color:'#eaf1ff'}}}}});
+}
+const gEnroll=(p,per)=>DATA.er[p]&&DATA.er[p][per]?DATA.er[p][per].enroll:null;
+const gRev=(p,per)=>DATA.er[p]&&DATA.er[p][per]?DATA.er[p][per].rev:null;
+const gBlended=(p,per)=>DATA.leads[p]&&DATA.leads[p][per]?DATA.leads[p][per].blended:null;
+const gSearch=(p,per)=>DATA.leads[p]&&DATA.leads[p][per]?DATA.leads[p][per].search:null;
+const gMeta=(p,per)=>DATA.leads[p]&&DATA.leads[p][per]?DATA.leads[p][per].meta:null;
+const gL2R=(p,per)=>DATA.leads[p]&&DATA.leads[p][per]?DATA.leads[p][per].l2r:null;
+const gSL2R=(p,per)=>DATA.leads[p]&&DATA.leads[p][per]?DATA.leads[p][per].search_l2r:null;
+const gML2R=(p,per)=>DATA.leads[p]&&DATA.leads[p][per]?DATA.leads[p][per].meta_l2r:null;
+const gBCPL=(p,per)=>DATA.leads[p]&&DATA.leads[p][per]&&DATA.leads[p][per].blended_cpl!=null?DATA.leads[p][per].blended_cpl:null;
+const gSCPL=(p,per)=>DATA.leads[p]&&DATA.leads[p][per]&&DATA.leads[p][per].search_cpl!=null?DATA.leads[p][per].search_cpl:null;
+const gMCPL=(p,per)=>DATA.leads[p]&&DATA.leads[p][per]&&DATA.leads[p][per].meta_cpl!=null?DATA.leads[p][per].meta_cpl:null;
+function inrLead(v){if(v==null)return"";return "\u20B9"+Math.round(v).toLocaleString('en-IN');}
+
+// ===== PER-PROGRAM TARGET BLOCK RENDERER (Enrollments & Revenue) =====
+var CARAMEL=TGT_JUL_COLOR, LAGOON=TGT_AUG_COLOR;
+var CAMEL="#C19A6B", SAND="#D8C3A5", BEIGE="#E8D9C0"; // July performances
+var TURQ="#2CB5A0", AQUA="#5FD3C4", MINT="#A8E6CF";   // Aug performances
+var JUL_PERF=[CAMEL,SAND,BEIGE], AUG_PERF=[TURQ,AQUA,MINT];
+var JUL_IDX=[0,1,2], AUG_IDX=[3,4,5]; // legacy (unused now)
+// explicit period->month map; seeded for original 6, extended when new periods added
+var PERIOD_MONTH={};
+(function(){DATA.periods.forEach(function(full){var m="Other";["January","February","March","April","May","June","July","August","September","October","November","December"].forEach(function(mm){if(full.indexOf(mm)>=0)m=mm;});PERIOD_MONTH[full]=m;});})();
+function periodsByMonth(month){return DATA.periods.filter(function(full){return (PERIOD_MONTH[full]||"")===month;});}
+function shortOf(full){var i=DATA.periods.indexOf(full);return i>=0?DATA.short[i]:full;}
+
+// ===== MONTH SLICER (Visuals) — auto-adapting =====
+var MONTH_ORDER_G=["January","February","March","April","May","June","July","August","September","October","November","December"];
+// accent color per month (July=caramel, Aug=lagoon, others cycle through palette)
+var MONTH_COLORS={July:TGT_JUL_COLOR,August:TGT_AUG_COLOR};
+var MONTH_PALETTE=["#3d7bff","#f6a723","#8f6bff","#37c26a","#ff5c8a","#2bb3c0","#c78bff","#ff7a59","#e6484d","#ffb01f"];
+function monthColor(m){if(MONTH_COLORS[m])return MONTH_COLORS[m];var i=MONTH_ORDER_G.indexOf(m);return MONTH_PALETTE[(i<0?0:i)%MONTH_PALETTE.length];}
+function availableMonths(){var out=[];DATA.periods.forEach(function(full){var m=PERIOD_MONTH[full]||"Other";if(out.indexOf(m)<0)out.push(m);});out.sort(function(a,b){return MONTH_ORDER_G.indexOf(a)-MONTH_ORDER_G.indexOf(b);});return out;}
+var MONTH_FILTER="ALL"; // "ALL" or a specific month name
+// months the charts should currently render (respects the filter)
+function activeMonths(){var av=availableMonths();if(MONTH_FILTER==="ALL"||av.indexOf(MONTH_FILTER)<0)return av;return [MONTH_FILTER];}
+var blockCharts={};
+function fmtBy(kind,v){return kind==='rev'?inr(v):num(v);}
+function tgtVal(prog,month,kind){var mk=(month==='aug')?'aug':'jul';return (TARGETS[prog]&&TARGETS[prog][mk]&&TARGETS[prog][mk][kind]!=null)?TARGETS[prog][mk][kind]:null;}
+function renderProgramBlocks(containerId,programs,kind){
+  var box=document.getElementById(containerId);
+  box.innerHTML='';
+  var getv=(kind==='rev')?gRev:gEnroll;
+  var months=activeMonths();
+  var PERF_BY_MONTH={July:JUL_PERF,August:AUG_PERF};
+  programs.forEach(function(p){
+    var block=document.createElement('div');block.className='prog-block';
+    block.innerHTML='<div class="prog-name">'+p+'</div><div class="prog-chart"><canvas></canvas></div>';
+    box.appendChild(block);
+    var canvas=block.querySelector('canvas');
+    var labels=[], vals=[], colors=[], isTgt=[];
+    // one group per active month: target row then that month's periods
+    months.forEach(function(m,mi){
+      var mk=(m==='August')?'aug':'jul';
+      var tval=tgtVal(p,mk,kind);
+      var tcol=monthColor(m);
+      var perf=PERF_BY_MONTH[m]||[monthColor(m)];
+      // pad the target label with spaces so each stays unique per month
+      labels.push('Target'+(mi>0?Array(mi+1).join(' '):''));vals.push(tval);colors.push(tcol);isTgt.push(true);
+      periodsByMonth(m).forEach(function(full,i){labels.push(shortOf(full));vals.push(getv(p,full));colors.push(perf[i%perf.length]);isTgt.push(false);});
+    });
+    var rowCount=labels.length;
+    block.querySelector('.prog-chart').style.height=Math.max(260,rowCount*34+40)+'px';
+    if(blockCharts[containerId+'_'+p])blockCharts[containerId+'_'+p].destroy();
+    blockCharts[containerId+'_'+p]=new Chart(canvas,{
+      type:'bar',
+      data:{labels:labels,datasets:[{data:vals,backgroundColor:colors,borderRadius:6,borderSkipped:false,maxBarThickness:24,
+        borderColor:isTgt.map(function(t){return t?'#ffffffaa':'transparent';}),borderWidth:isTgt.map(function(t){return t?1.5:0;})}]},
+      options:{indexAxis:'y',responsive:true,maintainAspectRatio:false,animation:false,layout:{padding:{right:90}},
+        plugins:{legend:{display:false},
+          tooltip:Object.assign({},TT,{callbacks:{title:function(i){return labels[i[0].dataIndex];},label:function(c){return fmtBy(kind,c.parsed.x);}}}),
+          datalabels:{anchor:'end',align:'end',offset:6,clamp:true,font:{family:"'Poppins',sans-serif",size:12,weight:'700'},
+            color:OFFWHITE,
+            formatter:function(v,ctx){if(v==null)return"";
+              if(isTgt[ctx.dataIndex] && kind==='enroll' && v<100){var mo=(ctx.dataIndex===0)?'July':'Aug';return mo+' Target, '+fmtBy(kind,v);}
+              return fmtBy(kind,v);}}
+        },
+        scales:{x:{ticks:{color:'#8ea0c4',callback:(kind==='rev'?function(v){return inr(v);}:undefined)},grid:{color:'rgba(130,160,220,.12)'}},
+                y:{grid:{display:false},ticks:{font:{size:12,weight:'600'},color:'#eaf1ff',callback:function(val,idx){return labels[idx];}}}}
+      },
+      plugins:[{id:'tgtWord',afterDatasetsDraw:function(chart){
+        var ctx=chart.ctx;var meta=chart.getDatasetMeta(0);
+        ctx.save();ctx.font="700 12px 'Poppins',sans-serif";ctx.fillStyle="#ffffff";ctx.textAlign="center";ctx.textBaseline="middle";
+        meta.data.forEach(function(bar,idx){
+          if(!isTgt[idx])return;
+          var vv=vals[idx];
+          if(kind==='enroll' && vv!=null && vv<100)return;
+          var x0=chart.scales.x.getPixelForValue(0);var xMid=(x0+bar.x)/2;var w=bar.x-x0;
+          if(w>ctx.measureText("Target").width+14){ctx.fillText("Target",xMid,bar.y);}
+        });
+        ctx.restore();
+      }}]
+    });
+  });
+}
+
+// ===== PER-PROGRAM METRIC BLOCK RENDERER (no target) =====
+function renderMetricBlocks(containerId,programs,getter,fmt){
+  var box=document.getElementById(containerId);
+  box.innerHTML='';
+  var months=activeMonths();
+  var PERF_BY_MONTH={July:JUL_PERF,August:AUG_PERF};
+  programs.forEach(function(p){
+    var block=document.createElement('div');block.className='prog-block';
+    block.innerHTML='<div class="prog-name">'+p+'</div><div class="prog-chart"><canvas></canvas></div>';
+    box.appendChild(block);
+    var canvas=block.querySelector('canvas');
+    var labels=[], vals=[], colors=[];
+    months.forEach(function(m){
+      var perf=PERF_BY_MONTH[m]||[monthColor(m)];
+      periodsByMonth(m).forEach(function(full,i){labels.push(shortOf(full));vals.push(getter(p,full));colors.push(perf[i%perf.length]);});
+    });
+    var rowCount=labels.length;
+    block.querySelector('.prog-chart').style.height=Math.max(220,rowCount*34+30)+'px';
+    if(blockCharts[containerId+'_'+p])blockCharts[containerId+'_'+p].destroy();
+    blockCharts[containerId+'_'+p]=new Chart(canvas,{
+      type:'bar',
+      data:{labels:labels,datasets:[{data:vals,backgroundColor:colors,borderRadius:6,borderSkipped:false,maxBarThickness:22}]},
+      options:{indexAxis:'y',responsive:true,maintainAspectRatio:false,animation:false,layout:{padding:{right:90}},
+        plugins:{legend:{display:false},
+          tooltip:Object.assign({},TT,{callbacks:{title:function(i){return labels[i[0].dataIndex];},label:function(c){return fmt(c.parsed.x);}}}),
+          datalabels:{anchor:'end',align:'end',offset:6,clamp:true,font:{family:"'Poppins',sans-serif",size:12,weight:'700'},
+            color:OFFWHITE,
+            formatter:function(v,ctx){return v==null?"":fmt(v);}}
+        },
+        scales:{x:{ticks:{color:'#8ea0c4'},grid:{color:'rgba(130,160,220,.12)'}},
+                y:{grid:{display:false},ticks:{font:{size:12,weight:'600'},color:'#eaf1ff',callback:function(val,idx){return labels[idx];}}}}
+      }
+    });
+  });
+}
+// map each chart container -> its render job
+var RENDER_JOBS=[
+  {id:'blocks_enroll',fn:function(pr){renderProgramBlocks('blocks_enroll',pr,'enroll');}},
+  {id:'blocks_rev',fn:function(pr){renderProgramBlocks('blocks_rev',pr,'rev');}},
+  {id:'blocks_blended',fn:function(pr){renderMetricBlocks('blocks_blended',pr,gBlended,num);}},
+  {id:'blocks_search',fn:function(pr){renderMetricBlocks('blocks_search',pr,gSearch,num);}},
+  {id:'blocks_meta',fn:function(pr){renderMetricBlocks('blocks_meta',pr,gMeta,num);}},
+  {id:'blocks_l2r',fn:function(pr){renderMetricBlocks('blocks_l2r',pr,gL2R,pct);}},
+  {id:'blocks_sl2r',fn:function(pr){renderMetricBlocks('blocks_sl2r',pr,gSL2R,pct);}},
+  {id:'blocks_ml2r',fn:function(pr){renderMetricBlocks('blocks_ml2r',pr,gML2R,pct);}},
+  {id:'blocks_bcpl',fn:function(pr){renderMetricBlocks('blocks_bcpl',pr,gBCPL,inrLead);}},
+  {id:'blocks_scpl',fn:function(pr){renderMetricBlocks('blocks_scpl',pr,gSCPL,inrLead);}},
+  {id:'blocks_mcpl',fn:function(pr){renderMetricBlocks('blocks_mcpl',pr,gMCPL,inrLead);}}
+];
+var LAST_PROGRAMS=DATA.programs.slice();
+// track which containers are up to date for the current state; cleared on every state change
+var RENDERED_IDS={};
+function cardCollapsed(containerId){var el=document.getElementById(containerId);var card=el?el.closest('.card'):null;return card?card.classList.contains('collapsed'):false;}
+// render only expanded (visible) cards; collapsed ones are marked stale and rendered on expand
+function renderVisible(){
+  RENDER_JOBS.forEach(function(job){
+    if(cardCollapsed(job.id)){RENDERED_IDS[job.id]=false;return;}   // skip hidden -> render lazily later
+    if(RENDERED_IDS[job.id])return;                                  // already current
+    job.fn(LAST_PROGRAMS);
+    RENDERED_IDS[job.id]=true;
+  });
+}
+function render(programs){
+  LAST_PROGRAMS=programs;
+  RENDERED_IDS={};        // state changed -> everything is stale
+  renderVisible();
+}
+let selected=DATA.programs.slice();
+const tiles=document.getElementById('tiles'),selCount=document.getElementById('selCount');
+function isAll(){return selected.length===DATA.programs.length;}
+
+// short label for the FAB badge
+function monthBadge(m){if(m==="ALL")return"All";return m.slice(0,3);}
+// ----- MONTH FILTER builder (auto-adapts to available months) — populates the floating popover -----
+function buildMonthSlicer(){
+  var box=document.getElementById('mpopList'); if(!box) return;
+  var months=availableMonths();
+  // if the current filter month no longer exists, fall back to ALL
+  if(MONTH_FILTER!=="ALL" && months.indexOf(MONTH_FILTER)<0) MONTH_FILTER="ALL";
+  box.innerHTML='';
+  // "All Months" row
+  var all=document.createElement('div');
+  all.className='mrow all'+(MONTH_FILTER==="ALL"?' on':'');
+  all.innerHTML='<span class="mdot" style="background:#00c2ad"></span>All Months<span class="mchk">&#10003;</span>';
+  all.addEventListener('click',function(){pickMonth("ALL");});
+  box.appendChild(all);
+  // one row per available month
+  months.forEach(function(m){
+    var col=monthColor(m);
+    var on=(MONTH_FILTER===m);
+    var t=document.createElement('div');
+    t.className='mrow'+(on?' on':'');
+    if(on){t.style.background='linear-gradient(135deg,'+hexAlpha(col,.38)+','+hexAlpha(col,.2)+')';t.style.borderColor=col;}
+    else{t.style.borderColor=hexAlpha(col,.4);t.style.background=hexAlpha(col,.12);}
+    t.innerHTML='<span class="mdot" style="background:'+col+'"></span>'+m+'<span class="mchk">&#10003;</span>';
+    t.addEventListener('click',function(){pickMonth(m);});
+    box.appendChild(t);
+  });
+  // update FAB badge to reflect current selection
+  var badge=document.getElementById('fmBadge'); if(badge)badge.textContent=monthBadge(MONTH_FILTER);
+}
+// snappy month pick: update instantly, close popover, defer the heavy chart render to next frame
+function pickMonth(m){
+  closeMonthPop();
+  if(MONTH_FILTER===m)return;      // no-op if already selected
+  MONTH_FILTER=m;
+  buildMonthSlicer();              // instant badge + row-state feedback
+  requestAnimationFrame(function(){refresh();});  // render charts after the UI paints
+}
+// ----- popover open/close -----
+function openMonthPop(){var p=document.getElementById('mpop'),b=document.getElementById('mpopBack');if(p)p.classList.add('open');if(b)b.classList.add('show');}
+function closeMonthPop(){var p=document.getElementById('mpop'),b=document.getElementById('mpopBack');if(p)p.classList.remove('open');if(b)b.classList.remove('show');}
+(function wireMonthFab(){
+  var fab=document.getElementById('fabMonth'),back=document.getElementById('mpopBack'),pop=document.getElementById('mpop');
+  if(fab)fab.addEventListener('click',function(e){e.stopPropagation();var open=pop&&pop.classList.contains('open');if(open)closeMonthPop();else openMonthPop();});
+  if(back)back.addEventListener('click',closeMonthPop);
+})();
+function hexAlpha(hex,a){var n=parseInt(hex.slice(1),16),r=(n>>16)&255,g=(n>>8)&255,b=n&255;return 'rgba('+r+','+g+','+b+','+a+')';}
+
+function refresh(){Array.prototype.forEach.call(tiles.children,t=>{if(!t.dataset.val)return;const v=t.dataset.val;const on=(selected.indexOf(v)>=0);t.classList.toggle('on',on);});selCount.textContent=isAll()?"(All "+DATA.programs.length+")":"("+selected.length+" selected)";var badge=document.getElementById('fpBadge');if(badge)badge.textContent=isAll()?"All":String(selected.length);render(isAll()?DATA.programs:selected);}
+// ----- Sectioned program groups -----
+const PROG_SECTIONS=[
+  {name:"Career Academy",color:"#f6a723",items:["CIBOP","PG Analytics","PGBAF","PGFAP","CFOP","DMPRO","PG Digital Marketing"]},
+  {name:"Global Certs",color:"#00c2ad",items:["ACCA","ACCA Retail","CFA","CFA Retail","CMA","CMA Retail","CPA","FRM","FRM Retail","FMVA"]},
+  {name:"Pro Degrees",color:"#8f6bff",items:["AIPM IBM","PGA PRO","KPMG FAP","KPMG PM","PWC Gen AI"]},
+  {name:"Exec. Edu.",color:"#3d7bff",items:["IIM C EPIBCM","IIM C EPPEVC","IIM L EMP SML","IIM L EP AIB","IIM L GSLP","IIM L GSLP CFO","IIM L GSLP CHRO","IIM L GSLP COO","IIML - EPSDMAI","ISB CFO"]}
+];
+function makeTile(p){
+  const t=document.createElement('div');t.className='tile';t.textContent=p;t.dataset.val=p;
+  t.addEventListener('click',()=>{
+    if(isAll()){selected=[p];}
+    else{const idx=selected.indexOf(p);if(idx>=0){selected.splice(idx,1);}else{selected.push(p);}if(selected.length===0){selected=DATA.programs.slice();}}
+    refresh();
+  });
+  return t;
+}
+(function buildSections(){
+  const placed=new Set();
+  PROG_SECTIONS.forEach(sec=>{
+    const present=sec.items.filter(p=>DATA.programs.indexOf(p)>=0);
+    if(!present.length)return;
+    const h=document.createElement('div');h.className='prog-sec';h.dataset.sec=sec.name;
+    h.innerHTML='<span class="sdot" style="background:'+sec.color+'"></span>'+sec.name+'<span class="scnt">'+present.length+'</span>';
+    tiles.appendChild(h);
+    present.forEach(p=>{placed.add(p);const t=makeTile(p);t.dataset.sec=sec.name;tiles.appendChild(t);});
+  });
+  // any programs not mapped to a section -> "Other"
+  const leftovers=DATA.programs.filter(p=>!placed.has(p));
+  if(leftovers.length){
+    const h=document.createElement('div');h.className='prog-sec';h.dataset.sec="Other";
+    h.innerHTML='<span class="sdot" style="background:#8ea0c4"></span>Other<span class="scnt">'+leftovers.length+'</span>';
+    tiles.appendChild(h);
+    leftovers.forEach(p=>{const t=makeTile(p);t.dataset.sec="Other";tiles.appendChild(t);});
+  }
+})();
+
+// collapse handlers
+document.addEventListener('click',function(e){
+  const btn=e.target.closest('.collapse-btn'); if(!btn) return;
+  const kind=btn.dataset.toggle;
+  if(kind==='card'){
+    const card=btn.closest('.card');
+    const nowCollapsed=card.classList.toggle('collapsed');
+    btn.innerHTML=nowCollapsed?'&#43;':'&#8722;';
+    // lazy render: if a card was just expanded and its chart is stale, render it now
+    if(!nowCollapsed){var cont=card.querySelector('.progblocks');if(cont&&typeof renderVisible==='function'){renderVisible();}}
+  }
+});
+
+// ===== FLOATING DRAWER =====
+const fab=document.getElementById('fab'),drawer=document.getElementById('drawer'),backdrop=document.getElementById('backdrop');
+function openDrawer(){drawer.classList.add('open');backdrop.classList.add('show');}
+function closeDrawer(){drawer.classList.remove('open');backdrop.classList.remove('show');}
+fab.addEventListener('click',openDrawer);
+document.getElementById('drClose').addEventListener('click',closeDrawer);
+backdrop.addEventListener('click',closeDrawer);
+
+const items=document.querySelectorAll('.nItem');
+items.forEach(it=>{
+  it.addEventListener('click',()=>{
+    if(it.dataset.prog){ closeDrawer(); openProg(); return; }
+    const el=document.getElementById(it.dataset.target);
+    if(!el) return;
+    if(el.classList.contains('collapsed')){el.classList.remove('collapsed');const b=el.querySelector('.collapse-btn');if(b)b.innerHTML='&#8722;';}
+    items.forEach(x=>x.classList.remove('active')); it.classList.add('active');
+    closeDrawer();
+    setTimeout(()=>el.scrollIntoView({behavior:'smooth',block:'start'}),120);
+  });
+});
+// active highlight while scrolling (only chart items with a target)
+const navItems=Array.from(items).filter(it=>it.dataset.target);
+const targets=navItems.map(it=>document.getElementById(it.dataset.target));
+window.addEventListener('scroll',()=>{
+  let best=0,bd=1e9;
+  targets.forEach((t,i)=>{if(!t)return;const r=t.getBoundingClientRect();const d=Math.abs(r.top-100);if(r.top<window.innerHeight*0.55&&d<bd){bd=d;best=i;}});
+  navItems.forEach(x=>x.classList.remove('active')); if(navItems[best])navItems[best].classList.add('active');
+});
+if(navItems[0])navItems[0].classList.add('active');
+
+// ===== RIGHT-SIDE PROGRAM DRAWER =====
+const fabProg=document.getElementById('fabProg'),drawerP=document.getElementById('drawerP'),backdropP=document.getElementById('backdropP');
+function openProg(){drawerP.classList.add('open');backdropP.classList.add('show');}
+function closeProg(){drawerP.classList.remove('open');backdropP.classList.remove('show');}
+fabProg.addEventListener('click',openProg);
+document.getElementById('drCloseP').addEventListener('click',closeProg);
+backdropP.addEventListener('click',closeProg);
+document.getElementById('btnAll').addEventListener('click',()=>{selected=DATA.programs.slice();refresh();});
+document.getElementById('btnClear').addEventListener('click',()=>{selected=DATA.programs.slice();refresh();});
+document.getElementById('progSearch').addEventListener('input',function(){
+  const q=this.value.trim().toLowerCase();
+  const secVisible={};
+  Array.prototype.forEach.call(tiles.children,t=>{
+    if(t.classList.contains('prog-sec'))return;
+    const show=!q || t.dataset.val.toLowerCase().indexOf(q)>=0;
+    t.classList.toggle('hide',!show);
+    if(show)secVisible[t.dataset.sec]=true;
+  });
+  Array.prototype.forEach.call(tiles.children,t=>{
+    if(!t.classList.contains('prog-sec'))return;
+    t.classList.toggle('hide', q && !secVisible[t.dataset.sec]);
+  });
+});
+
+buildMonthSlicer();
+refresh();
+
+
+/* ============================================================
+   DATA TAB MODULE (period slicer, editable grid, connector,
+   progress, edit modes, persistence)
+   ============================================================ */
+(function(){
+  var MONTH_ORDER=["January","February","March","April","May","June","July","August","September","October","November","December"];
+  function monthOf(full){if(typeof PERIOD_MONTH!=="undefined"&&PERIOD_MONTH[full])return PERIOD_MONTH[full];for(var i=0;i<MONTH_ORDER.length;i++){if(full.indexOf(MONTH_ORDER[i])>=0)return MONTH_ORDER[i];}return "Other";}
+  function shortFor(full){var idx=DATA.periods.indexOf(full);return idx>=0?DATA.short[idx]:full;}
+  var COLS=[
+    {label:"Target Enrollments",store:"targets",key:"enroll",kind:"num",tgt:true},
+    {label:"Enrollments",store:"er",key:"enroll",kind:"num"},
+    {label:"Target Revenue",store:"targets",key:"rev",kind:"num",tgt:true},
+    {label:"Revenue",store:"er",key:"rev",kind:"num"},
+    {label:"Blended Leads",store:"leads",key:"blended",kind:"num"},
+    {label:"Search Leads",store:"leads",key:"search",kind:"num"},
+    {label:"Meta Leads",store:"leads",key:"meta",kind:"num"},
+    {label:"L2R %",store:"leads",key:"l2r",kind:"pct"},
+    {label:"Search L2R",store:"leads",key:"search_l2r",kind:"pct"},
+    {label:"Meta L2R",store:"leads",key:"meta_l2r",kind:"pct"},
+    {label:"Blended CPL",store:"leads",key:"blended_cpl",kind:"num"},
+    {label:"Search CPL",store:"leads",key:"search_cpl",kind:"num"},
+    {label:"Meta CPL",store:"leads",key:"meta_cpl",kind:"num"}
+  ];
+  var COL_LABELS=COLS.map(function(c){return c.label;});
+  var EXPECTED_HEADERS=["Program"].concat(COL_LABELS);
+  var PALETTE=["#3d7bff","#00c2ad","#f6a723","#ff5c8a","#8f6bff","#37c26a","#ffb01f","#ff7a59","#e6484d","#2bb3c0","#c78bff"];
+  function periodColor(full){var i=DATA.periods.indexOf(full);if(i<0)i=0;return PALETTE[i%PALETTE.length];}
+  function hexA(hex,a){var n=parseInt(hex.slice(1),16),r=(n>>16)&255,g=(n>>8)&255,b=n&255;return 'rgba('+r+','+g+','+b+','+a+')';}
+  var selPeriod=DATA.periods[0];
+
+  // ---------- persistence ----------
+  var LS_KEY='wpd_data_v2';
+  function saveLS(){try{localStorage.setItem(LS_KEY,JSON.stringify({periods:DATA.periods,short:DATA.short,programs:DATA.programs,er:DATA.er,leads:DATA.leads,targets:TARGETS,period_month:PERIOD_MONTH}));}catch(e){}}
+  function loadLS(){try{var s=localStorage.getItem(LS_KEY);if(!s)return false;var o=JSON.parse(s);if(o&&o.periods&&o.er&&o.leads){DATA.periods=o.periods;DATA.short=o.short;DATA.programs=o.programs;DATA.er=o.er;DATA.leads=o.leads;if(o.targets){for(var k in o.targets){TARGETS[k]=o.targets[k];}}if(o.period_month){for(var pm in o.period_month){PERIOD_MONTH[pm]=o.period_month[pm];}}return true;}}catch(e){}return false;}
+
+  // ---------- program sections (reuse global PROG_SECTIONS) ----------
+  function sectionsForGrid(){
+    var placed={},out=[];
+    PROG_SECTIONS.forEach(function(sec){
+      var present=sec.items.filter(function(p){return DATA.programs.indexOf(p)>=0;});
+      if(present.length){present.forEach(function(p){placed[p]=1;});out.push({name:sec.name,progs:present});}
+    });
+    var leftover=DATA.programs.filter(function(p){return !placed[p];});
+    if(leftover.length)out.push({name:"Other",progs:leftover});
+    return out;
+  }
+
+  // ---------- period slicer (collapsible, colorful) ----------
+  var slicer=document.getElementById('pslicer');
+  var slicerBtn=document.getElementById('slicerToggle');
+  slicerBtn.addEventListener('click',function(){
+    var collapsed=slicer.classList.toggle('collapsed');
+    slicerBtn.innerHTML=collapsed?'&#43;':'&#8722;';
+  });
+  function buildSlicer(){
+    slicer.innerHTML='';
+    var months=[];DATA.periods.forEach(function(full){var m=monthOf(full);if(months.indexOf(m)<0)months.push(m);});
+    months.sort(function(a,b){return MONTH_ORDER.indexOf(a)-MONTH_ORDER.indexOf(b);});
+    months.forEach(function(m){
+      var g=document.createElement('div');g.className='monthgrp';
+      var html='<div class="monthlbl">'+m+'</div><div class="pcards">';
+      DATA.periods.filter(function(full){return monthOf(full)===m;}).forEach(function(full){
+        var col=periodColor(full);var on=(full===selPeriod);
+        var style=on?('background:linear-gradient(135deg,'+col+','+hexA(col,.8)+');border-color:'+col+';box-shadow:0 0 0 3px '+hexA(col,.25)+',0 6px 16px rgba(0,0,0,.35);'):('border-color:'+hexA(col,.5)+';background:'+hexA(col,.10)+';');
+        html+='<div class="pcard'+(on?' on':'')+'" data-full="'+full.replace(/"/g,'&quot;')+'" style="'+style+'"><span class="cdot" style="background:'+col+'"></span>'+shortFor(full)+'<span class="pn">'+full+'</span><button class="pcard-x" type="button" title="Remove period">&#10005;</button></div>';
+      });
+      html+='</div>';g.innerHTML=html;slicer.appendChild(g);
+    });
+    slicer.querySelectorAll('.pcard-x').forEach(function(xb){
+      xb.addEventListener('click',function(ev){
+        ev.stopPropagation();
+        var card=xb.closest('.pcard'); var full=card.dataset.full;
+        if(DATA.periods.length<=1){alert('Cannot remove the only remaining period.');return;}
+        if(!confirm('Remove period "'+full+'"?\n\nWARNING: All data for this period (enrollments, revenue, leads, CPL, etc.) will be permanently deleted. This cannot be undone.'))return;
+        removePeriodData(full);
+        buildSlicer();buildCurrentTable();
+        if(typeof buildMonthSlicer==='function')buildMonthSlicer();
+        selected=DATA.programs.slice();refresh();
+        saveLS();
+      });
+    });
+    slicer.querySelectorAll('.pcard').forEach(function(card){
+      card.addEventListener('click',function(){selPeriod=card.dataset.full;buildSlicer();buildCurrentTable();});
+    });
+  }
+
+  // ---------- current data table ----------
+  var currentLocked=true;
+  function tgtMonthKey(full){var m=monthOf(full);return (m==='August')?'aug':'jul';} // default jul for others
+  function valOf(store,key,prog,full){
+    if(store==='targets'){
+      var mk=tgtMonthKey(full);
+      if(TARGETS[prog]&&TARGETS[prog][mk]&&TARGETS[prog][mk][key]!=null)return TARGETS[prog][mk][key];
+      return '';
+    }
+    var s=DATA[store];if(s&&s[prog]&&s[prog][full]&&s[prog][full][key]!=null)return s[prog][full][key];return '';
+  }
+  function tableHTML(caption,locked,full,tmpId){
+    var html='<div class="tablewrap'+(tmpId?' newperiod" data-tmp="'+tmpId:'')+'">';
+    if(tmpId){
+      html+='<div class="tcap newcap"><span class="nc-title">&#10133; New Period</span><span class="nc-fields"><input class="np-name" placeholder="Type period name (e.g. 17th to 24th August)"><select class="np-month">';
+      MONTH_ORDER.forEach(function(m){html+='<option'+(m==='August'?' selected':'')+'>'+m+'</option>';});
+      html+='</select><label class="np-confirm"><input type="checkbox" class="np-tick"><span>Confirm &amp; add to slicer</span></label><button class="np-remove" type="button" title="Remove this table">&#10005; Remove</button></span></div>';
+    } else {
+      html+='<div class="tcap">'+caption+' &middot; <span style="color:#8ea0c4">'+full+'</span></div>';
+    }
+    html+='<table class="dtable"><thead><tr><th style="text-align:left">Program</th>';
+    COLS.forEach(function(c){html+='<th'+(c.tgt?' class="tgtcol"':'')+'>'+c.label+'</th>';});html+='</tr></thead><tbody>';
+    sectionsForGrid().forEach(function(sec){
+      html+='<tr class="secrow"><td colspan="'+(COLS.length+1)+'">'+sec.name+'</td></tr>';
+      sec.progs.forEach(function(p){
+        html+='<tr><td class="prog">'+p+'</td>';
+        COLS.forEach(function(c){
+          var v=tmpId?'':valOf(c.store,c.key,p,full);
+          var step=(c.kind==='pct')?' step="0.0001"':'';
+          html+='<td'+(c.tgt?' class="tgtcol"':'')+'><input type="number"'+step+' value="'+v+'" data-p="'+p.replace(/"/g,'&quot;')+'" data-store="'+c.store+'" data-key="'+c.key+'" '+(locked?'disabled':'')+'></td>';
+        });
+        html+='</tr>';
+      });
+    });
+    html+='</tbody></table></div>';return html;
+  }
+  function buildCurrentTable(){document.getElementById('currentTable').innerHTML=tableHTML('Current Data',currentLocked,selPeriod,null);}
+
+  // ---------- write grid -> DATA ----------
+  function ensureCell(store,prog,full){if(!DATA[store][prog])DATA[store][prog]={};if(!DATA[store][prog][full])DATA[store][prog][full]={};}
+  function pullTable(container,full){
+    container.querySelectorAll('input[data-p]').forEach(function(inp){
+      var store=inp.dataset.store,key=inp.dataset.key,prog=inp.dataset.p,val=inp.value;
+      if(val==='')return;
+      if(store==='targets'){
+        var mk=tgtMonthKey(full);
+        if(!TARGETS[prog])TARGETS[prog]={};
+        if(!TARGETS[prog][mk])TARGETS[prog][mk]={};
+        TARGETS[prog][mk][key]=+val;
+        return;
+      }
+      ensureCell(store,prog,full);
+      DATA[store][prog][full][key]=+val;
+    });
+  }
+
+  // ---------- tabs (icon tabs) ----------
+  document.querySelectorAll('.itab').forEach(function(t){t.addEventListener('click',function(){
+    document.querySelectorAll('.itab').forEach(function(x){x.classList.remove('on');});
+    document.querySelectorAll('.appview').forEach(function(x){x.classList.remove('on');});
+    t.classList.add('on');document.getElementById('av_'+t.dataset.av).classList.add('on');
+    if(t.dataset.av==='vis'){try{for(var id in charts){charts[id].resize();}}catch(e){}}
+  });});
+
+  // ---------- Edit button (direct) + Done button ----------
+  var btnDone=document.getElementById('btnDone');
+  document.getElementById('btnEdit').addEventListener('click',function(){
+    currentLocked=false;buildCurrentTable();
+    btnDone.classList.remove('dormant');btnDone.classList.add('active');
+    document.getElementById('ovEditMsg').classList.add('show');
+  });
+  document.getElementById('editMsgOk').addEventListener('click',function(){document.getElementById('ovEditMsg').classList.remove('show');});
+  btnDone.addEventListener('click',function(){
+    pullTable(document.getElementById('currentTable'),selPeriod);
+    saveLS();
+    currentLocked=true;buildCurrentTable();
+    btnDone.classList.remove('active');btnDone.classList.add('dormant');
+  });
+
+  // ---------- Upload Table (CSV / Excel) ----------
+  document.getElementById('btnUpload').addEventListener('click',function(){document.getElementById('fileUpload').click();});
+  document.getElementById('btnTemplate').addEventListener('click',function(){
+    var headers=["Program"].concat(COL_LABELS);
+    var rows=[headers];
+    sectionsForGrid().forEach(function(sec){
+      sec.progs.forEach(function(p){
+        var row=[p];
+        COLS.forEach(function(c){
+          if(c.store==='targets'){
+            // pre-fill target columns with July target values
+            var tv=(TARGETS[p]&&TARGETS[p].jul&&TARGETS[p].jul[c.key]!=null)?TARGETS[p].jul[c.key]:"";
+            row.push(tv);
+          } else {
+            row.push("");
+          }
+        });
+        rows.push(row);
+      });
+    });
+    var downloaded=false;
+    if(typeof XLSX!=="undefined"){
+      try{
+        var ws=XLSX.utils.aoa_to_sheet(rows);
+        ws["!cols"]=[{wch:28}];
+        for(var c=0;c<COL_LABELS.length;c++){ws["!cols"].push({wch:18});}
+        var wb=XLSX.utils.book_new();
+        XLSX.utils.book_append_sheet(wb,ws,"Template");
+        XLSX.writeFile(wb,"weekly_data_template_with_targets.xlsx");
+        downloaded=true;
+      }catch(e){console.warn("XLSX write failed:",e);}
+    }
+    if(!downloaded){
+      try{
+        var lines=[];
+        for(var r=0;r<rows.length;r++){
+          var cells=[];
+          for(var c2=0;c2<rows[r].length;c2++){cells.push('"'+String(rows[r][c2]).replace(/"/g,'""')+'"');}
+          lines.push(cells.join(","));
+        }
+        var csvText="\uFEFF"+lines.join("\r\n");
+        var blob=new Blob([csvText],{type:"text/csv;charset=utf-8"});
+        var url=URL.createObjectURL(blob);
+        var link=document.createElement("a");
+        link.setAttribute("href",url);link.setAttribute("download","weekly_data_template_with_targets.csv");
+        link.style.display="none";document.body.appendChild(link);link.click();document.body.removeChild(link);
+        setTimeout(function(){URL.revokeObjectURL(url);},1000);
+        downloaded=true;
+      }catch(e2){console.warn("CSV download failed:",e2);}
+    }
+    if(!downloaded){alert("Download failed. Please try again or check your browser settings.");}
+  });
+  document.getElementById('btnExport').addEventListener('click',function(){
+    // Export EVERYTHING: one row per program per period, all measures incl targets
+    var headers=["Program","Period"].concat(COL_LABELS);
+    var rows=[headers];
+    sectionsForGrid().forEach(function(sec){
+      sec.progs.forEach(function(p){
+        DATA.periods.forEach(function(full){
+          var row=[p,full];
+          COLS.forEach(function(c){
+            var v=valOf(c.store,c.key,p,full);
+            row.push(v===''?"":v);
+          });
+          rows.push(row);
+        });
+      });
+    });
+    var downloaded=false;
+    if(typeof XLSX!=="undefined"){
+      try{
+        var ws=XLSX.utils.aoa_to_sheet(rows);
+        ws["!cols"]=[{wch:28},{wch:20}];
+        for(var c=0;c<COL_LABELS.length;c++){ws["!cols"].push({wch:18});}
+        var wb=XLSX.utils.book_new();
+        XLSX.utils.book_append_sheet(wb,ws,"Data");
+        XLSX.writeFile(wb,"weekly_dashboard_data.xlsx");
+        downloaded=true;
+      }catch(e){console.warn("XLSX export failed:",e);}
+    }
+    if(!downloaded){
+      try{
+        var lines=[];
+        for(var r=0;r<rows.length;r++){
+          var cells=[];
+          for(var c2=0;c2<rows[r].length;c2++){cells.push('"'+String(rows[r][c2]).replace(/"/g,'""')+'"');}
+          lines.push(cells.join(","));
+        }
+        var csvText="\uFEFF"+lines.join("\r\n");
+        var blob=new Blob([csvText],{type:"text/csv;charset=utf-8"});
+        var url=URL.createObjectURL(blob);
+        var link=document.createElement("a");
+        link.setAttribute("href",url);link.setAttribute("download","weekly_dashboard_data.csv");
+        link.style.display="none";document.body.appendChild(link);link.click();document.body.removeChild(link);
+        setTimeout(function(){URL.revokeObjectURL(url);},1000);
+        downloaded=true;
+      }catch(e2){console.warn("CSV export failed:",e2);}
+    }
+    if(!downloaded){alert("Export failed. Please try again or check your browser settings.");}
+  });
+  document.getElementById('fileUpload').addEventListener('change',function(e){
+    var file=e.target.files[0];if(!file)return;e.target.value='';
+    var ext=file.name.split('.').pop().toLowerCase();
+    if(ext==='csv'){
+      var reader=new FileReader();
+      reader.onload=function(){processRows(csvParse(reader.result),file.name);};
+      reader.readAsText(file);
+    } else {
+      var reader2=new FileReader();
+      reader2.onload=function(){
+        try{
+          var wb=XLSX.read(reader2.result,{type:'array'});
+          var ws=wb.Sheets[wb.SheetNames[0]];
+          var rows=XLSX.utils.sheet_to_json(ws,{header:1});
+          processRows(rows,file.name);
+        }catch(err){showError('Could not read the Excel file. Make sure it is a valid .xlsx or .xls file.');}
+      };
+      reader2.readAsArrayBuffer(file);
+    }
+  });
+  function csvParse(text){
+    var lines=text.trim().split('\n');
+    return lines.map(function(line){return line.split(',').map(function(c){return c.trim().replace(/^"|"$/g,'');});});
+  }
+  function normalizeHeader(h2){return h2.toLowerCase().replace(/[^a-z0-9%]/g,'');}
+  function validateHeaders(fileHeaders){
+    var expected=EXPECTED_HEADERS.map(normalizeHeader);
+    var actual=fileHeaders.map(normalizeHeader);
+    var missing=[];
+    expected.forEach(function(e,i){if(actual.indexOf(e)<0)missing.push(EXPECTED_HEADERS[i]);});
+    return missing;
+  }
+  function processRows(rows,filename){
+    if(rows.length<2){showError('The file appears to be empty (no data rows found).');return;}
+    var headers=rows[0].map(function(h2){return String(h2).trim();});
+    var missing=validateHeaders(headers);
+    if(missing.length>0){
+      showError('Column mismatch! Missing:<br><b>'+missing.join(', ')+'</b><br><br>Expected: <b>'+EXPECTED_HEADERS.join(' | ')+'</b>');
+      return;
+    }
+    showProgress('Uploading: '+filename,'Validating layout &middot; importing '+rows.length+' rows');
+    var pct=0;
+    var iv=setInterval(function(){
+      pct+=Math.random()*15+5;if(pct>=100)pct=100;
+      setRing(pct);
+      if(pct>=100){
+        clearInterval(iv);
+        setTimeout(function(){
+          hideProgress();
+          var empty=document.getElementById('newEmpty');if(empty)empty.remove();
+          var newSeqVal='upl'+(++uploadSeq);
+          var box=document.createElement('div');box.innerHTML=tableHTML('Uploaded: '+filename,false,null,newSeqVal);
+          var wrap=box.firstChild;document.getElementById('newTables').appendChild(wrap);
+          // fill values from file
+          var progIdx=headers.map(normalizeHeader).indexOf(normalizeHeader('Program'));
+          var colMap=[];
+          COLS.forEach(function(c){
+            var ni=headers.map(normalizeHeader).indexOf(normalizeHeader(c.label));
+            if(ni>=0)colMap.push({idx:ni,store:c.store,key:c.key});
+          });
+          for(var r=1;r<rows.length;r++){
+            var row=rows[r];
+            var prog=String(row[progIdx]||'').trim();
+            if(!prog)continue;
+            colMap.forEach(function(cm){
+              var inp=wrap.querySelector('input[data-p="'+prog+'"][data-store="'+cm.store+'"][data-key="'+cm.key+'"]');
+              if(inp){inp.value=row[cm.idx]||0;}
+            });
+          }
+          // wire confirm tick
+          var tick=wrap.querySelector('.np-tick');
+          if(tick){
+            tick.addEventListener('change',function(){
+              if(!tick.checked)return;
+              var name=wrap.querySelector('.np-name').value.trim();
+              if(!name){alert('Please type a period name first.');tick.checked=false;return;}
+              if(DATA.periods.indexOf(name)>=0){alert('That period already exists.');tick.checked=false;return;}
+              var chosenMonth=wrap.querySelector('.np-month')?wrap.querySelector('.np-month').value:'August';
+              DATA.periods.push(name);DATA.short.push(name.length>14?name.replace(/(st|nd|rd|th)/g,'').replace(/to/,'-'):name);
+              PERIOD_MONTH[name]=chosenMonth;
+              pullTable(wrap,name);
+              wrap.querySelector('.np-name').disabled=true;wrap.querySelector('.np-month').disabled=true;tick.disabled=true;
+              wrap.querySelector('.nc-title').innerHTML='&#10003; Added: '+name;
+              wrap.classList.add('confirmed');
+              buildSlicer();if(typeof buildMonthSlicer==='function')buildMonthSlicer();saveLS();
+            });
+          }
+          showDone('File imported! '+(rows.length-1)+' rows loaded into a new table. Name the period and tick Confirm to register it.');
+        },400);
+      }
+    },120);
+  }
+  var uploadSeq=0;
+
+  // ---------- Connect & Update ----------
+  document.getElementById('btnConnect').addEventListener('click',function(){document.getElementById('ovConfirm').classList.add('show');});
+  document.getElementById('cNo').addEventListener('click',function(){document.getElementById('ovConfirm').classList.remove('show');});
+  document.getElementById('cYes').addEventListener('click',function(){
+    document.getElementById('ovConfirm').classList.remove('show');
+    pullTable(document.getElementById('currentTable'),selPeriod);
+    // pull ALL new-period tables (confirmed or not). Auto-register any with a name.
+    document.querySelectorAll('#newTables .newperiod').forEach(function(w){
+      var nameEl=w.querySelector('.np-name'); if(!nameEl)return;
+      var nm=nameEl.value.trim(); if(!nm)return;
+      if(DATA.periods.indexOf(nm)<0){
+        var chosenMonth=w.querySelector('.np-month')?w.querySelector('.np-month').value:'August';
+        DATA.periods.push(nm);
+        DATA.short.push(nm.length>14?nm.replace(/(st|nd|rd|th)/g,'').replace(/to/,'-'):nm);
+        PERIOD_MONTH[nm]=chosenMonth;
+        // lock the row + mark confirmed visually
+        nameEl.disabled=true; if(w.querySelector('.np-month'))w.querySelector('.np-month').disabled=true;
+        var tk=w.querySelector('.np-tick'); if(tk){tk.checked=true;tk.disabled=true;}
+        var tt=w.querySelector('.nc-title'); if(tt)tt.innerHTML='&#10003; Added: '+nm;
+        w.classList.add('confirmed');
+      }
+      pullTable(w,nm);
+    });
+    if(typeof buildSlicer==='function')buildSlicer();
+    if(typeof buildMonthSlicer==='function')buildMonthSlicer();
+    saveLS();
+    showProgress('Updating charts...','Reading grid &middot; recalculating &middot; rendering');
+    var pct2=0;
+    var iv2=setInterval(function(){
+      pct2+=Math.random()*12+4;if(pct2>=100)pct2=100;setRing(pct2);
+      if(pct2>=100){clearInterval(iv2);setTimeout(function(){
+        hideProgress();
+        selected=DATA.programs.slice();refresh();
+        showDone('Charts updated with your new data.');
+        document.querySelector('.itab[data-av="vis"]').click();
+      },450);}
+    },150);
+  });
+  document.getElementById('dOk').addEventListener('click',function(){document.getElementById('ovDone').classList.remove('show');});
+  document.getElementById('errOk').addEventListener('click',function(){document.getElementById('ovError').classList.remove('show');});
+
+  // ---------- modal helpers ----------
+  function showProgress(title,msg){document.getElementById('progTitle').innerHTML=title;document.getElementById('progMsg').innerHTML=msg;setRing(0);document.getElementById('ovProg').classList.add('show');}
+  function hideProgress(){document.getElementById('ovProg').classList.remove('show');setRing(0);}
+  function setRing(pct){document.getElementById('ringFg').style.strokeDashoffset=326.7*(1-pct/100);document.getElementById('pctxt').textContent=Math.round(pct)+'%';}
+  function showDone(msg){document.getElementById('doneMsg').innerHTML=msg;document.getElementById('ovDone').classList.add('show');}
+  function showError(msg){document.getElementById('errMsg').innerHTML=msg;document.getElementById('ovError').classList.add('show');}
+
+  // ---------- remove a new-period table ----------
+  function removePeriodData(name){
+    var idx=DATA.periods.indexOf(name);
+    if(idx>=0){
+      DATA.periods.splice(idx,1);
+      DATA.short.splice(idx,1);
+    }
+    if(PERIOD_MONTH[name])delete PERIOD_MONTH[name];
+    // remove stored values for this period
+    ["er","leads"].forEach(function(store){
+      if(DATA[store]){for(var p in DATA[store]){if(DATA[store][p] && DATA[store][p][name])delete DATA[store][p][name];}}
+    });
+    if(selPeriod===name)selPeriod=DATA.periods[0];
+  }
+  document.getElementById('newTables').addEventListener('click',function(e){
+    var btn=e.target.closest('.np-remove'); if(!btn) return;
+    var wrap=btn.closest('.newperiod'); if(!wrap) return;
+    var nameEl=wrap.querySelector('.np-name');
+    var nm=nameEl?nameEl.value.trim():'';
+    if(!confirm('Remove this table'+(nm?' ("'+nm+'")':'')+'? This cannot be undone.'))return;
+    // if this period was registered, purge it from the data + charts
+    if(nm && DATA.periods.indexOf(nm)>=0){
+      removePeriodData(nm);
+      buildSlicer();buildCurrentTable();
+      if(typeof buildMonthSlicer==='function')buildMonthSlicer();
+      selected=DATA.programs.slice();refresh();
+      saveLS();
+    }
+    wrap.remove();
+    // restore empty placeholder if no new tables remain
+    var box=document.getElementById('newTables');
+    if(!box.querySelector('.newperiod')){box.innerHTML='<div class="emptybox" id="newEmpty">New table will show here.</div>';}
+  });
+
+  // ---------- init ----------
+  var _loaded=loadLS();
+  selPeriod=DATA.periods[0];
+  buildSlicer();buildCurrentTable();
+  // if data was restored from localStorage, refresh month slicer + charts to reflect it
+  if(_loaded){if(typeof buildMonthSlicer==='function')buildMonthSlicer();if(typeof selected!=="undefined"){selected=DATA.programs.slice();}if(typeof refresh==='function')refresh();}
+})();
+
+</script>
+</body>
+</html>
